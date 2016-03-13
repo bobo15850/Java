@@ -1,4 +1,11 @@
 import java.io.UnsupportedEncodingException;
+import java.sql.Date;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Stack;
+import java.util.Vector;
+import java.util.concurrent.locks.Lock;
 
 import mylang.MyInteger;
 import mylang.MyString;
@@ -28,8 +35,29 @@ public class Test {
 		// String s1 = new String("abc");
 		// s1 = s1.intern();
 		// System.out.println(s == s1);
+		// long start = System.currentTimeMillis();
+		// for (int i = 0; i < 10000000; i++) {
+		// int num = Integer.reverse(i);
+		// if (num == 0) {
+		// System.out.println(i);
+		// }
+		// }
+		// long cur = System.currentTimeMillis();
+		// for (int i = 0; i < 10000000; i++) {
+		// int num = MyInteger.reverse(i);
+		// if (num == 0) {
+		// System.out.println(i);
+		// }
+		// }
+		// long end = System.currentTimeMillis();
+		// System.out.println(cur - start);
+		// System.out.println(end - cur);
 
-		System.out.println(MyInteger.toString(0x34345345));
+		// System.out.println(MyInteger.signum(-23));
+
+		System.out.println(MyInteger.toUnsignedString(-4335234, 16));
+		System.out.println(Integer.toHexString(-4335234));
+
 	}
 
 	public static void fn(int... is) {
