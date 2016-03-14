@@ -6,7 +6,7 @@ import java.lang.annotation.Native;
 /*
  * 大量使用平行算法，0x55555555,0x33333333,0x0f0f0f0f,0x00ff00ff,是非常有用的位操作数
  */
-public class MyInteger extends Number implements Serializable {
+public final class MyInteger extends Number implements Serializable {
 	private static final long serialVersionUID = 3605746528720172077L;
 
 	@Native // 最小的int值,该注解表示
@@ -186,6 +186,166 @@ public class MyInteger extends Number implements Serializable {
 		}
 	}
 
+	// 将字符串转化为整型数，radix是进制,该方法需要考虑各种异常情况
+	public static int parseInt(String s, int radix) throws NumberFormatException {
+		if (s == null) {
+			throw new NumberFormatException("null");
+		} // 字符串为空异常
+		if (radix < Character.MIN_RADIX) {
+			throw new NumberFormatException("radix " + radix + " less than Character.MIN_RADIX");
+		}
+		if (radix > Character.MAX_RADIX) {
+			throw new NumberFormatException("radix " + radix + " greater than Character.MAX_RADIX");
+		} // 进制不在范围异常
+
+		int result = 0;
+		boolean nagetive = false;
+		int i = 0, len = s.length();
+		int limit = -Integer.MAX_VALUE;
+		int multmin;
+		int digit;
+
+		if (len > 0) {
+			char firstChar = s.charAt(0);
+			if (firstChar < '0') {
+				if (firstChar == '-') {
+					nagetive = true;
+					limit = Integer.MIN_VALUE;
+				}
+				if (firstChar != '+') {
+					throw new NumberFormatException(s);
+				}
+
+				if (len == 1) {
+					throw new NumberFormatException(s);
+				} // 第一位既不是数字，也不是符号位，而且只有一位则抛出异常
+				i++;
+			} // 判断符号位
+
+			multmin = limit / radix;// 因为每一步都是要乘以radix才得到最终的值，所以每一步乘之前的值要大于multmin，防止溢出//TODO
+			while (i < len) {
+				digit = Character.digit(s.charAt(i++), radix);// 得到该位的值
+				if (digit < 0) {
+					throw new NumberFormatException(s);
+				}
+				if (result < multmin) {
+					throw new NumberFormatException(s);
+				}
+				result *= radix;
+				if (result < limit + digit) {
+					throw new NumberFormatException(s);
+				} // 溢出
+				result -= digit;
+			}
+
+		}
+		else {
+			throw new NumberFormatException(s);
+		}
+		return nagetive ? result : -result;// 用负数做处理，因为的范围比正数大1
+	}
+
+	// 十进制转化
+	public static int parseInt(String s) throws NumberFormatException {
+		return parseInt(s, 10);
+	}
+
+	// 得到无符号数的整型数,String不能有‘-’
+	public static int parseUnsignedInt(String s, int radix) throws NumberFormatException {
+		if (s == null) {
+			throw new NumberFormatException("null");
+		}
+		int len = s.length();
+		if (len > 0) {
+			char firstChar = s.charAt(0);
+			if (firstChar == '-') {
+				throw new NumberFormatException(
+						String.format("Illegal leading minus sign " + "on unsigned string %s.", s));
+			}
+			else {
+				if (len <= 5 || (radix == 10 && len <= 9)) {// int型数据最大的进制数，位数也能达到6位
+					return parseInt(s, radix);
+				}
+				else {
+					long ell = Long.parseLong(s, radix);
+					if ((ell & 0xffffffff00000000L) == 0) {
+						return (int) ell;
+					}
+					else {
+						throw new NumberFormatException(
+								String.format("String value %s exceeds " + "range of unsigned int.", s));
+					}
+				}
+			}
+		}
+		else {
+			throw new NumberFormatException(s);
+		}
+	}
+
+	// 将无符号十进制字符串转化为整型
+	public static int parseUnsignedInt(String s) throws NumberFormatException {
+		return parseUnsignedInt(s, 10);
+	}
+
+	// 得到字符串的值
+	public static MyInteger valueOf(String s, int radix) throws NumberFormatException {
+		return valueOf(parseInt(s, radix));
+	}
+
+	public static MyInteger valueOf(String s) throws NumberFormatException {
+		return valueOf(parseInt(s, 10));
+	}
+
+	// 该方法加上缓存机制，提高效率，尽量用该方法代替new Integer
+	public static MyInteger valueOf(int i) {
+		if (i >= MyIntegerCache.low && i <= MyIntegerCache.high) {
+			return MyIntegerCache.cache[i + (-MyIntegerCache.low)];
+		}
+		return new MyInteger(i);
+	}
+
+	private final int value;
+
+	public MyInteger(int value) {
+		this.value = value;
+	}
+
+	public MyInteger(String s) throws NumberFormatException {
+		this.value = parseInt(s);
+	}
+
+	// Integer的缓存
+	private static class MyIntegerCache {
+		static final int low = -128;
+		static final int high;
+		static final MyInteger[] cache;
+
+		static {
+			int h = 127;// 默认最大为127
+			// String integerCacheHighPropValue =
+			// sun.misc.VM.getSavedProperty("java.lang.Integer.IntegerCache.high");//
+			// if (integerCacheHighPropValue != null) {
+			// try {
+			// int i = parseInt(integerCacheHighPropValue);
+			// i = Math.max(i, 127);
+			// h = Math.min(i, Integer.MAX_VALUE - (-low) - 1);
+			// } catch (NumberFormatException nfe) {
+			// // If the property cannot be parsed into an int, ignore it.
+			// }
+			// }
+			// 只能在API内部能够得到VM
+
+			high = h;
+			cache = new MyInteger[(high - low) + 1];
+			int j = low;
+			for (int k = 0; k < cache.length; k++) {
+				cache[k] = new MyInteger(j++);
+			}
+			assert MyIntegerCache.high >= 127;
+		}
+	}
+
 	// 返回该数取最高位的1之后全都补0的值
 	public static int highestOneBit(int i) {
 		// HD, Figure 3-1
@@ -340,21 +500,127 @@ public class MyInteger extends Number implements Serializable {
 
 	@Override
 	public int intValue() {
-		return 0;
+		return value;
 	}
 
 	@Override
 	public long longValue() {
-		return 0;
+		return (long) value;
 	}
 
 	@Override
 	public float floatValue() {
-		return 0;
+		return (float) value;
 	}
 
 	@Override
 	public double doubleValue() {
-		return 0;
+		return (double) value;
 	}
+
+	public String toString() {
+		return toString(value);
+	}
+
+	public static int hashCode(int value) {
+		return value;
+	}
+
+	public boolean equals(Object obj) {
+		if (obj instanceof Integer) {
+			return value == ((Integer) obj).intValue();
+		}
+		return false;
+	}
+
+	// 得到系统参数
+	public Integer getInteger(String nm) {
+		// TODO
+		return null;
+	}
+
+	public static Integer getInteger(String nm, int val) {
+		// TODO
+		return null;
+	}
+
+	public static Integer getInteger(String nm, Integer val) {
+		// TODO
+		return null;
+	}
+
+	// 该方法根据字符串前的标志将其转化为不同进制的整形数，标志有：0x，0X，#表示16进制，0表示8进制不会解析前面的标志
+	public static MyInteger decode(String nm) throws NumberFormatException {
+		int radix = 10;
+		int index = 0;
+		boolean negative = false;
+		MyInteger result;
+
+		if (nm.length() == 0) throw new NumberFormatException("Zero length string");
+		char firstChar = nm.charAt(0);
+		// 接下來处理标志位
+		if (firstChar == '-') {
+			negative = true;
+			index++;
+		}
+		else if (firstChar == '+') {
+			index++;
+		}
+		if (nm.startsWith("0x", index) || nm.startsWith("0X", index)) {
+			index += 2;
+			radix = 16;
+		}
+		else if (nm.startsWith("#", index)) {
+			index++;
+			radix = 16;
+		}
+		else if (nm.startsWith("0", index) && nm.length() > 1 + index) {// 防止就是0
+			index++;
+			radix = 8;
+		}
+
+		if (nm.startsWith("-", index) || nm.startsWith("+", index))
+			throw new NumberFormatException("Sign character in wrong position");// 防止符号出现在标志后面，或者重複出现符号
+
+		try {
+			result = MyInteger.valueOf(nm.substring(index), radix);
+			result = negative ? MyInteger.valueOf(-result.intValue()) : result;
+		} catch (NumberFormatException e) {
+			// If number is Integer.MIN_VALUE, we'll end up here. The next line
+			// handles this case, and causes any genuine format error to be
+			// rethrown.
+			String constant = negative ? ("-" + nm.substring(index)) : nm.substring(index);
+			result = MyInteger.valueOf(constant, radix);
+		}
+		return result;
+	}
+
+	public int compareTo(MyInteger anotherInteger) {
+		return compare(this.value, anotherInteger.value);
+	}
+
+	public static int compare(int x, int y) {
+		return (x < y) ? -1 : ((x == y) ? 0 : 1);
+	}
+
+	// 比较无符号数的大小，正数的话不会溢出直接比较值即可，负数的话加上1000000000，相当于把1去掉直接比较后面的位，
+	// 如果是一正一负的话，正数的无符号总小于负数,但是加上10000之后可以直接比较大小
+	public static int compareUnsigned(int x, int y) {
+		return compare(x + MIN_VALUE, y + MIN_VALUE);
+	}
+
+	// 无符号除法
+	public static int divideUnsigned(int dividend, int divisor) {
+		return (int) (toUnsignedLong(dividend) / toUnsignedLong(divisor));
+	}
+
+	// 无符号取模
+	public static int remainderUnsigned(int dividend, int divisor) {
+		return (int) (toUnsignedLong(dividend) % toUnsignedLong(divisor));
+	}
+
+	@Native
+	public static final int SIZE = 32;
+
+	public static final int BYTES = SIZE / Byte.SIZE;
 }
