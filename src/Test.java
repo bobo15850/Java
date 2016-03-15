@@ -60,7 +60,10 @@ public class Test {
 		System.out.println(MyInteger.toUnsignedString(-4335234, 16));
 		System.out.println(Integer.toHexString(-4335234));
 		System.out.println(MyInteger.parseInt("110", 2));
-		System.out.println(MyInteger.parseUnsignedInt("-1234", 10));
+		System.out.println(MyInteger.parseUnsignedInt("1234", 10));
+
+		new StringBuffer();
+
 	}
 
 	public static void fn(int... is) {
