@@ -3,14 +3,18 @@ import java.sql.Date;
 import java.sql.Time;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
 import java.util.Stack;
 import java.util.Vector;
 import java.util.concurrent.locks.Lock;
 
 import mylang.MyInteger;
 import mylang.MyString;
+import myutil.MyMap;
 
 public class Test {
 	public static void main(String[] args) throws UnsupportedEncodingException {
@@ -57,12 +61,27 @@ public class Test {
 
 		// System.out.println(MyInteger.signum(-23));
 
-		System.out.println(MyInteger.toUnsignedString(-4335234, 16));
-		System.out.println(Integer.toHexString(-4335234));
-		System.out.println(MyInteger.parseInt("110", 2));
-		System.out.println(MyInteger.parseUnsignedInt("1234", 10));
+		// System.out.println(MyInteger.toUnsignedString(-4335234, 16));
+		// System.out.println(Integer.toHexString(-4335234));
+		// System.out.println(MyInteger.parseInt("110", 2));
+		// System.out.println(MyInteger.parseUnsignedInt("1234", 10));
+		//
+		// new StringBuffer();
 
-		new StringBuffer();
+		// Map<String, String> map = new HashMap<String, String>();
+		// map.put("1", "a");
+		// map.put("2", "b");
+		// Map<String, String> m = new HashMap<String, String>();
+		// m.put("11", "aa");
+		// m.putAll(map);
+		// System.out.println(m.toString());
+
+		Map<String, String> map = new HashMap<String, String>();
+		map.put("1", "a");
+		map.put("2", "b");
+
+		Collection<String> values = map.values();
+		System.out.println(values.getClass());
 
 	}
 
