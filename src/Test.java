@@ -1,20 +1,6 @@
 import java.io.UnsupportedEncodingException;
-import java.sql.Date;
-import java.sql.Time;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Collection;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
-import java.util.Set;
-import java.util.Stack;
-import java.util.Vector;
-import java.util.concurrent.locks.Lock;
-
-import mylang.MyInteger;
-import mylang.MyString;
-import myutil.MyMap;
 
 public class Test {
 	public static void main(String[] args) throws UnsupportedEncodingException {
@@ -77,15 +63,26 @@ public class Test {
 		// System.out.println(m.toString());
 
 		Map<String, String> map = new HashMap<String, String>();
-		map.put("1", "a");
+		map.put("11", "aa");
 		map.put("2", "b");
 
-		Collection<String> values = map.values();
-		System.out.println(values.getClass());
+		// map.forEach((a, b) -> System.out.println(a + b));
+		// Collection<String> values = map.values();
+		// System.out.println(values.getClass());
+		// map.keySet().stream().sorted((a, b) -> Integer.compare(a.length(),
+		// b.length())).forEach((a) -> {
+		// System.out.println(a);
+		// });
+		// map.keySet().stream().mapToInt(k -> k.length()).sorted().forEach((k)
+		// -> System.out.println(k));
+		// map.keySet().stream().map(k ->
+		// k.length()).collect(Collectors.toList());
 
-	}
+		// map.computeIfAbsent("22", (k) -> (k));
+		// System.out.println(map);
 
-	public static void fn(int... is) {
-		System.out.println(is[3]);
+		// map.merge("2", "hhh", (a, b) -> (a + b));
+		// System.out.println(map);
+
 	}
 }
