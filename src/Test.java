@@ -1,5 +1,7 @@
 import java.io.UnsupportedEncodingException;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 
 public class Test {
@@ -82,6 +84,11 @@ public class Test {
 		// System.out.println(map);
 
 		// map.merge("2", "hhh", (a, b) -> (a + b));
+		// System.out.println(map);
+		// Collection<String> values = map.values();
+		// Iterator<String> i = values.iterator();
+		// i.next();
+		// i.remove();
 		// System.out.println(map);
 
 	}
