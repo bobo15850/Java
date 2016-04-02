@@ -61,6 +61,57 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements Cloneable, S
 	}// 返回键值对的多少
 
 	// TODO 省略一系列查询方法，先学习添加元素的方法
+	final Entry<K, V> getEntry(Object key) {
+		if (comparator != null) {
+			return getEntryUsingComparator(key);
+		}
+		if (key == null) {
+			throw new NullPointerException();
+		}
+
+		// 得到key的比较器，如果没有初始化比较器key必须实现comparable接口
+		@SuppressWarnings("unchecked")
+		Comparable<? super K> k = (Comparable<? super K>) key;
+
+		// 以下利用key的comparable接口进行二叉搜索树的查找
+		Entry<K, V> p = root;
+		while (p != null) {
+			int cmp = k.compareTo(p.key);
+			if (cmp < 0) {
+				p = p.left;
+			}
+			else if (cmp > 0) {
+				p = p.right;
+			}
+			else {
+				return p;
+			}
+		}
+		return null;// 一直没有查找到返回null
+	}
+
+	// 通过初始化的时候设置的比较器来得到元素，一定存在比较器
+	final Entry<K, V> getEntryUsingComparator(Object key) {
+		@SuppressWarnings("unchecked")
+		K k = (K) key;// 这里的强转可以检测key是否为null，然后抛出nullpointerException
+		Comparator<? super K> cpr = comparator;
+		if (cpr != null) {
+			Entry<K, V> p = root;
+			while (root != null) {
+				int cmp = cpr.compare(k, p.key);
+				if (cmp < 0) {
+					p = p.left;
+				}
+				else if (cmp > 0) {
+					p = p.right;
+				}
+				else {
+					return p;
+				}
+			}
+		}
+		return null;
+	}
 
 	public V put(K key, V value) {
 		// 先找到所要添加的位置，然后红黑树的调整，使其符合红黑树的性质4,5
@@ -126,6 +177,17 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements Cloneable, S
 		modCount++;
 		return null;// 新添加键值对返回null
 	}// 向map中添加一个元素，如果存在key则替换原先的value，返回值是原来的value值，或者null（原来不存在，新添加的key-value）
+
+	// 刪除元素，需要判断是否存在该key的元素
+	public V remove(Object key) {
+		Entry<K, V> p = getEntry(key);// 找到需要删除的元素
+		if (p == null) {
+			return null;// 没有找到元素
+		}
+		V oldValue = p.value;
+		deleteEntry(p);
+		return oldValue;
+	}
 
 	/*
 	 * 下面是静态工具方法
@@ -193,6 +255,76 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements Cloneable, S
 
 		public String toString() {
 			return key + "=" + value;
+		}
+	}
+
+	final Entry<K, V> getFirstEntry() {
+		Entry<K, V> p = root;
+		if (p != null) {
+			while (p != null) {
+				p = p.left;
+			}
+		}
+		return p;
+	}// 得到整个treemap中第一个元素,也就是最左下角边的一个元素
+
+	final Entry<K, V> getLastEntry() {
+		Entry<K, V> p = root;
+		if (p != null) {
+			while (p.right != null) {
+				p = p.right;
+			}
+		}
+		return p;
+	}// 返回整个treemap中按照规则排序最大的一个元素
+
+	// 返回特定节点的后继结点，按照特定的顺序的后继
+	static <K, V> MyTreeMap.Entry<K, V> successor(Entry<K, V> t) {
+		if (t == null) {
+			return null;
+		}
+		// 右子树不为空
+		else if (t.right != null) {
+			Entry<K, V> p = t.right;
+			while (p.left != null) {
+				p = p.left;
+			}
+			return p;
+		}
+		// 没有右子树
+		else {
+			Entry<K, V> p = t.parent;
+			Entry<K, V> ch = t;
+			// 只要出现一个向右的拐点就说明拐点的父节点就是后继，否则则一直到达根节点，就说明没有后继，返回null
+			while (p != null && ch == p.right) {
+				ch = p;
+				p = p.parent;
+			}//
+			return p;
+		}
+	}
+
+	// 返回某一结点的前驱结点,类似于上面的找后继结点
+	static <K, V> Entry<K, V> predecessor(Entry<K, V> t) {
+		if (t == null) {
+			return null;
+		}
+		else if (t.left != null) {
+			Entry<K, V> p = t.left;
+			while (p.right != null) {
+				p = p.right;
+			}
+			return p;
+		}
+		else {
+			Entry<K, V> p = t.parent;
+			Entry<K, V> ch = t;
+			// 只要出现一个向左的拐点拐点就说明拐点上面的值是前驱，如果一直没有拐点则说明一直到了root，没有前驱，返回null
+			while (p != null && ch == p.left) {
+				ch = p;
+				p = p.parent;
+			}
+			return p;
 		}
 	}
 
@@ -333,4 +465,71 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements Cloneable, S
 			}
 		}
 	}// 插入元素之后的调整，調用以上的方法实现
+
+	// 刪除元素，一定存在的节点
+	/*
+	 * 二叉搜索樹刪除节点（该节点做右子树都有）的处理方法：
+	 * 1.用该节点的左子树或者右子树结点代替被删除的节点，然后将剩下的子树连接在最左或者最右
+	 * 2.用该节点的前驱结点或者后继结点代替被删除的节点，在递归的删除前驱或者后继结点
+	 * 
+	 * treemap中采用的是：被删除节点的右子树中最小节点与被删节点交换的方式进行维护（用后继结点代替该节点，然后递归的删除）
+	 */
+	private void deleteEntry(Entry<K, V> p) {
+		modCount++;
+		size--;
+
+		if (p.left != null && p.right != null) {
+			Entry<K, V> s = successor(p);// 得到被刪除节点的后继结点，一定不为null而且该节点一定没有左子树
+			p.key = s.key;
+			p.value = s.value;// 只是改变该节点的键和值
+			p = s;
+		}// 用后继结点代替该节点，因为后继结点一定是没有左子节点的，所以也完成了控制最多只有一个子树的任务
+
+		Entry<K, V> replacement = (p.left != null ? p.left : p.right);
+
+		if (replacement != null) {// 用唯一的一个子树替代该节点
+			replacement.parent = p.parent;
+			if (p.parent == null) {
+				root = replacement;
+			}
+			else if (p.parent.left == p) {
+				p.parent.left = replacement;
+			}
+			else {
+				p.parent.right = replacement;
+			}
+			p.left = p.right = p.parent = null;// 消除引用防止内存泄漏，使其可以进行颜色调整
+			if (p.color == BLACK) {
+				fixAfterDeletion(replacement);
+				// TODO 进行删除节点后的调整，使其符合红黑树的性质5
+			}
+		}
+		else if (p.parent == null) {// p是根节点
+			root = null;// 刪除根节点
+		}
+		else {
+			if (p.color == BLACK) {
+				fixAfterDeletion(p);
+			}
+			if (p.parent != null) {
+				if (p == p.parent.left) {
+					p.parent.left = null;
+				}
+				else if (p == p.parent.right) {
+					p.parent.right = null;
+				}
+			}// 删除节点，以取消父节点对该节点的引用来实现
+		}
+	}// 刪除元素
+
+	private void fixAfterDeletion(Entry<K, V> x) {
+
+	}
 }
+/*
+ * 参考资料：
+ * 1.https://www.ibm.com/developerworks/cn/java/j-lo-tree/
+ * 2.http://blog.csdn.net/v_july_v/article/details/6105630
+ * 视频资料：
+ * 1.http://v.youku.com/v_show/id_XMjE4MjQwMTQ4.html
+ */
