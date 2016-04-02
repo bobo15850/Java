@@ -63,7 +63,7 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements Cloneable, S
 	// TODO 省略一系列查询方法，先学习添加元素的方法
 
 	public V put(K key, V value) {
-		// TODO,该方法设计红黑树的遍历，以及红黑树的调整
+		// 先找到所要添加的位置，然后红黑树的调整，使其符合红黑树的性质4,5
 		Entry<K, V> t = root;
 		if (root == null) {
 			t = new Entry<K, V>(key, value, null);
@@ -122,12 +122,9 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements Cloneable, S
 			parent.right = e;
 		}
 		fixAfterInsertion(e);// 对插入的值进行调整
-		// TODO要进行红黑树的调整，使其符合红黑树的性质
-
 		size++;
 		modCount++;
 		return null;// 新添加键值对返回null
-
 	}// 向map中添加一个元素，如果存在key则替换原先的value，返回值是原来的value值，或者null（原来不存在，新添加的key-value）
 
 	/*
@@ -275,8 +272,65 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements Cloneable, S
 		}
 	}// 将该节点为根的子树右旋
 
-	private void fixAfterInsertion(Entry<K, V> e) {
+	/*
+	 * 主要思路：
+	 * 1.首先判断新节点是加在左节点还是右节点上，以下以左节点为例
+	 * 2.然后判断新节点的叔叔节点的颜色，如果是红色则说明爷爷节点是黑色，就要颠倒爷父叔之后递归调用爷
+	 * 3.如果是黑色或者没有则要判断新加的节点是左节点还是右节点，如果是右节点则要进行左旋新节点的父节点
+	 * 4.最后右旋爷爷节点，调整父节点和爷爷节点的颜色
+	 * 
+	 * 整个过程的结束条件就是新加的节点是加在黑色节点上的（或者本身已经成为根节点），在黑节点上加节点只要加个红节点，无需调整
+	 */
+	private void fixAfterInsertion(Entry<K, V> x) {
+		x.color = RED;// 对于每一个新加入的节点先把颜色设置成红色，首先满足规则五
 
+		while (x != null && x != root && x.parent.color == RED) {
+			// 节点加在一个左节点上
+			if (parentOf(x) == leftOf(parentOf(parentOf(x)))) {
+				Entry<K, V> y = rightOf(parentOf(parentOf(x)));// 新加节点父节点的兄弟节点
+				// 叔叔节点是红节点，此时父节点的父节点是黑色，父节点一定是红色
+				if (colorOf(y) == RED) {
+					// 直接将父节点和叔叔节点还有爷爷节点颜色颠倒，将自己的颜色设置成红色，然后再递归的调整爷爷节点
+					setColor(parentOf(x), BLACK);
+					setColor(y, BLACK);
+					setColor(parentOf(parentOf(x)), RED);
+					x = parentOf(parentOf(x));// 将x设置成其爷爷节点，用迭代的方式实现递归调整，直到根节点
+				}
+				// 叔叔节点是黑节点或者为空
+				else {
+					// 新加入的节点加在右节点的位置上
+					if (x == rightOf(parentOf(x))) {
+						// 经过旋转将其加变到左节点上，然后统一处理
+						x = parentOf(x);
+						rotateLeft(x);
+					}
+					// 以下同一处理添加在左节点位置的情况,将父节点提到顶节点的位置，颜色变为黑
+					// 爷爷节点变成顶节点的右节点，颜色变为红
+					setColor(parentOf(x), BLACK);
+					setColor(parentOf(parentOf(x)), RED);
+					rotateRight(parentOf(parentOf(x)));
+				}
+			}
+			// 节点加在一个右节点上
+			else {
+				// 这里的操作与节点添加在左节点上是相反的
+				Entry<K, V> l = leftOf(parentOf(parentOf(x)));
+				if (colorOf(l) == RED) {
+					setColor(parentOf(x), BLACK);
+					setColor(parentOf(parentOf(x)), RED);
+					setColor(l, BLACK);
+					x = parentOf(parentOf(x));
+				}
+				else {
+					if (x == leftOf(parentOf(x))) {
+						x = parentOf(x);
+						rotateRight(x);
+					}
+					setColor(parentOf(x), BLACK);
+					setColor(parentOf(parentOf(x)), RED);
+					rotateLeft(parentOf(parentOf(x)));
+				}
+			}
+		}
 	}// 插入元素之后的调整，調用以上的方法实现
-
 }
