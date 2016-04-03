@@ -2,6 +2,7 @@ package myutil;
 
 import java.io.Serializable;
 import java.util.Comparator;
+import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.SortedMap;
 
@@ -47,7 +48,7 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements Cloneable, S
 	}// 使用一个比较器初始化一个map
 
 	public MyTreeMap(MyMap<? extends K, ? extends V> map) {
-		this.comparator = null;// 使用自然顺序比较器
+		comparator = null;// 使用自然顺序比较器
 		putAll(map);
 	}// 使用一个常规map初始化treemap
 
@@ -59,6 +60,43 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements Cloneable, S
 	public int size() {
 		return size;
 	}// 返回键值对的多少
+
+	public boolean containsKey(Object key) {
+		return getEntry(key) != null;
+	}// 判断是否存在某个key,如果为null会跑出nullpointer异常，如果key没有实现comparable接口会抛出异常
+
+	public boolean containsValue(Object value) {
+		// 由于value是没有顺序的，所以没有O（lgn）的算法，最好的复杂度控制在O(n)
+		for (Entry<K, V> e = getFirstEntry(); e != null; e = successor(e)) {
+			if (valEquals(value, e.getValue())) {
+				return true;
+			}
+		}// 使用后继的方式可以降低查找的复杂度，因为如果直接使用每一个get方法的话复杂度是O（n*logn）
+		return false;
+	}// 判断是否存在某个value，value的值可以为null
+
+	// 通过key来查找value，如果key为null抛出nullpointer异常
+	// 如果既没有实现comparable接口有没有指定comparator会抛出classcast异常
+	public V get(Object key) {
+		Entry<K, V> p = getEntry(key);
+		return p == null ? null : p.value;
+	}
+
+	public Comparator<? super K> comparator() {
+		return comparator;
+	}// 返回比较器
+
+	public K firstKey() {
+		return key(getFirstEntry());
+	}// 返回按照排序规则的第一个键
+
+	public K lastKey() {
+		return key(getLastEntry());
+	}// 返回按照排序规则的最后一个键
+
+	public void putAll(MyMap<? extends K, ? extends V> map) {
+		// TODO
+	}
 
 	// TODO 省略一系列查询方法，先学习添加元素的方法
 	final Entry<K, V> getEntry(Object key) {
@@ -189,6 +227,33 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements Cloneable, S
 		return oldValue;
 	}
 
+	public void clear() {
+		modCount++;// 一次clear操作只算一次修改
+		size = 0;
+		root = null;
+	}
+
+	// 返回一个浅拷贝，我觉得这个方法并没有什么卵用
+	// public Object clone() {
+	// MyTreeMap<?, ?> clone;
+	// try {
+	// clone = (MyTreeMap<?, ?>) super.clone();// 调用父类的拷贝方法
+	// } catch (CloneNotSupportedException e) {
+	// throw new InternalError(e);
+	// }
+	// // 将这个拷贝得到的对象设置为刚出生的状态，除了比较器
+	// clone.size = 0;
+	// clone.keySet = null;
+	// clone.modCount = 0;
+	// clone.root = null;
+	// clone.values = null;
+	// // TODO 这里还有其他的变量没有设置
+	//
+	// // 这个方法暂时无法完成
+	// return null;
+	//
+	// }
+
 	/*
 	 * 下面是静态工具方法
 	 */
@@ -197,6 +262,13 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements Cloneable, S
 	static final boolean valEquals(Object o1, Object o2) {
 		return o1 == null ? o2 == null : o1.equals(o2);// 避免了null检查
 	}// 判断两个value是否equals，如果是两个null返回true
+
+	static <K> K key(Entry<K, ?> e) {
+		if (e == null) {
+			throw new NoSuchElementException();
+		}
+		return e.key;
+	}// 返回一个元组的键
 
 	private static final boolean RED = false;
 	private static final boolean BLACK = true;
