@@ -2,6 +2,7 @@ package myutil;
 
 import java.io.Serializable;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.SortedMap;
@@ -95,7 +96,11 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements Cloneable, S
 	}// 返回按照排序规则的最后一个键
 
 	public void putAll(MyMap<? extends K, ? extends V> map) {
-		// TODO
+		// TODO 需要先学习buildFromSorted
+		int mapSize = map.size();
+		if (size == 0 && mapSize != 0 && map instanceof SortedMap) {
+
+		}
 	}
 
 	// TODO 省略一系列查询方法，先学习添加元素的方法
@@ -658,6 +663,25 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements Cloneable, S
 				}
 			}
 		}
+	}
+
+	private void buildFromSorted(int size, Iterator<?> it, java.io.ObjectInputStream str, V defalutVal)
+			throws java.io.IOException, ClassNotFoundException {
+		this.size = size;
+	}
+
+	private final Entry<K, V> buildFromSorted(int level, int lo, int hi, int redLevel, Iterator<?> it,
+			java.io.ObjectInputStream str, V defaultVal) throws java.io.IOException, ClassNotFoundException {
+		return null;
+	}
+
+	// 该方法没有看明白
+	// TODO先睡觉，明天再来看,16-04-04
+	private static int computeRedLevel(int sz) {
+		int level = 0;
+		for (int m = sz - 1; m >= 0; m = m / 2 - 1)
+			level++;
+		return level;
 	}
 }
 /*
