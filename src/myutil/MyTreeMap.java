@@ -182,23 +182,147 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements MyNavigableM
 		return null;
 	}
 
-	final Entry<K, V> getLowerEntry(K key) {
-		// TODO
-		return null;
-	}
-
-	final Entry<K, V> getHigherEntry(K key) {
-		// TODO
-		return null;
-	}
-
+	// 得到天花板（大于等于key的第一个entry）
 	final Entry<K, V> getCeilingEntry(K key) {
-		// TODO
+		Entry<K, V> p = root;
+		while (p != null) {
+			int cmp = compare(key, p.key);
+			if (cmp < 0) {
+				// 说明还有比p更小的值（该值可能比key大，也可能比key小）
+				if (p.left != null) {
+					p = p.left;
+				}
+				// 说明比key大的节点中没有比p更小的节点了
+				else {
+					return p;
+				}
+			}
+			else if (cmp > 0) {
+				if (p.right != null) {
+					p = p.right;
+				}
+				else {
+					// 所有的查询路径一定是先一直左拐然后一直右拐但是任然没有达到key的大小，现在是要找到那个变化点
+					Entry<K, V> parent = p.parent;
+					Entry<K, V> ch = p;
+					while (parent != null && ch == parent.right) {
+						ch = parent;
+						parent = ch.parent;
+					}// 右枝为null说明没有比这个元素更大的了，但是key又大于这个元素
+						// （只要找比这个元素大，但是比key小的元素）如果一直在右枝上遍历
+						// 只需找到拐向这条左枝（或者找到根节点）的元素就好了（因为拐向这条左枝，说明key小于该元素）
+						// 一直向上找，直到遇到一个大于以下全部的
+					return parent;
+				}
+			}
+			else {
+				return p;
+			}
+		}
 		return null;
 	}
 
+	// 得到地板（小于等于key的第一个entry）
 	final Entry<K, V> getFloorEntry(K key) {
-		// TODO
+		Entry<K, V> p = root;
+		while (p != null) {
+			int cmp = compare(key, p.key);// 该方法不仅仅起到了比较的作用，还能够检查输入的值（类型，null）
+			if (cmp < 0) {
+				if (p.left != null) {
+					p = p.left;
+				}
+				else {
+					// 所有的查询状态路径一定是先一直右拐，然后一直左拐，但是左拐到底后还是比key要大，拐点的元素比最左边的大，但是比key小
+					Entry<K, V> parent = p.parent;
+					Entry<K, V> ch = p;
+					while (parent != null && ch == parent.left) {
+						ch = parent;
+						parent = parent.parent;
+					}
+					return parent;
+				}
+			}
+			else if (cmp > 0) {
+				if (p.right != null) {
+					p = p.right;
+				}
+				else {
+					return p;
+				}
+			}
+			else {
+				return p;
+			}
+		}
+		return null;
+	}
+
+	// 得到大于key的第一个entry
+	final Entry<K, V> getHigherEntry(K key) {
+		Entry<K, V> p = root;
+		while (p != null) {
+			int cmp = compare(key, p.key);
+			if (cmp < 0) {
+				// 说明还有比p更小的值（该值可能比key大，也可能比key小）
+				if (p.left != null) {
+					p = p.left;
+				}
+				// 说明比key大的节点中没有比p更小的节点了
+				else {
+					return p;
+				}
+			}
+			else {
+				if (p.right != null) {
+					p = p.right;
+				}
+				else {
+					// 所有的查询路径一定是先一直左拐然后一直右拐但是任然没有达到key的大小，现在是要找到那个变化点
+					Entry<K, V> parent = p.parent;
+					Entry<K, V> ch = p;
+					while (parent != null && ch == parent.right) {
+						ch = parent;
+						parent = ch.parent;
+					}// 右枝为null说明没有比这个元素更大的了，但是key又大于这个元素
+						// （只要找比这个元素大，但是比key小的元素）如果一直在右枝上遍历
+						// 只需找到拐向这条左枝（或者找到根节点）的元素就好了（因为拐向这条左枝，说明key小于该元素）
+						// 一直向上找，直到遇到一个大于以下全部的
+					return parent;
+				}
+			}
+		}
+		return null;
+	}
+
+	// 得到小于key的第一个entry
+	final Entry<K, V> getLowerEntry(K key) {
+		Entry<K, V> p = root;
+		while (p != null) {
+			int cmp = compare(key, p.key);// 该方法不仅仅起到了比较的作用，还能够检查输入的值（类型，null）
+			if (cmp > 0) {
+				if (p.right != null) {
+					p = p.right;
+				}
+				else {
+					return p;
+				}
+			}
+			else {
+				if (p.left != null) {
+					p = p.left;
+				}
+				else {
+					// 所有的查询状态路径一定是先一直右拐，然后一直左拐，但是左拐到底后还是比key要大，拐点的元素比最左边的大，但是比key小
+					Entry<K, V> parent = p.parent;
+					Entry<K, V> ch = p;
+					while (parent != null && ch == parent.left) {
+						ch = parent;
+						parent = parent.parent;
+					}
+					return parent;
+				}
+			}
+		}
 		return null;
 	}
 
@@ -312,63 +436,68 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements MyNavigableM
 
 	// 返回小于key的第一个entry
 	public MyMap.Entry<K, V> lowerEntry(K key) {
-		// TODO
-		return null;
+		return exportEntry(getLowerEntry(key));
 	}
 
 	public K lowerKey(K key) {
-		// TODO Auto-generated method stub
-		return null;
+		return keyOrNull(getLowerEntry(key));
 	}
 
+	// 返回小于等于key的第一个（地板）
 	public MyMap.Entry<K, V> floorEntry(K key) {
-		// TODO Auto-generated method stub
-		return null;
+		return exportEntry(getFloorEntry(key));
 	}
 
 	public K floorKey(K key) {
-		// TODO Auto-generated method stub
-		return null;
+		return keyOrNull(getFloorEntry(key));
 	}
 
+	// 返回大于等于key的第一个（天花板）
 	public MyMap.Entry<K, V> ceilingEntry(K key) {
-		// TODO Auto-generated method stub
-		return null;
+		return exportEntry(getCeilingEntry(key));
 	}
 
 	public K ceilingKey(K key) {
-		// TODO Auto-generated method stub
-		return null;
+		return keyOrNull(getCeilingEntry(key));
 	}
 
+	// 返回大于key的第一个
 	public MyMap.Entry<K, V> higherEntry(K key) {
-		// TODO Auto-generated method stub
-		return null;
+		return exportEntry(getHigherEntry(key));
 	}
 
 	public K higherKey(K key) {
-		// TODO Auto-generated method stub
-		return null;
+		return keyOrNull(getHigherEntry(key));
 	}
 
+	// 返回第一个entry
 	public MyMap.Entry<K, V> firstEntry() {
-		// TODO Auto-generated method stub
-		return null;
+		return exportEntry(getFirstEntry());
 	}
 
+	// 返回最后一个entry
 	public MyMap.Entry<K, V> lastEntry() {
-		// TODO Auto-generated method stub
-		return null;
+		return exportEntry(getLastEntry());
 	}
 
+	// 返回并删除第一个entry
 	public MyMap.Entry<K, V> pollFirstEntry() {
-		// TODO Auto-generated method stub
-		return null;
+		Entry<K, V> p = getFirstEntry();
+		MyMap.Entry<K, V> result = exportEntry(p);
+		if (p != null) {
+			deleteEntry(p);
+		}
+		return result;
 	}
 
+	// 返回并删除最后一个entry
 	public MyMap.Entry<K, V> pollLastEntry() {
-		// TODO Auto-generated method stub
-		return null;
+		Entry<K, V> p = getLastEntry();
+		MyMap.Entry<K, V> result = exportEntry(p);
+		if (p != null) {
+			deleteEntry(p);
+		}
+		return result;
 	}
 
 	public MyNavigableMap<K, V> descendingMap() {
@@ -436,7 +565,7 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements MyNavigableM
 	}
 
 	// 返回一个元组的键，如果元组为null则返回null
-	static <K, V> K KeyOrNull(MyTreeMap.Entry<K, V> e) {
+	static <K, V> K keyOrNull(MyTreeMap.Entry<K, V> e) {
 		return e == null ? null : e.key;
 	}
 
