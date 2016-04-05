@@ -1,5 +1,6 @@
 package myutil;
 
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -53,9 +54,17 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements Cloneable, S
 		putAll(map);
 	}// 使用一个常规map初始化treemap
 
+	// 通过一个排好序的map来初始化map调用buildFromSorted方法，递归的构造map
+	// TODO 如果马屁过大会不会造成stackoverflow？？？？
 	public MyTreeMap(SortedMap<K, ? extends V> m) {
 		this.comparator = m.comparator();
-		// TODO 利用已有的map建立treemap
+		try {
+			buildFromSorted(m.size(), m.entrySet().iterator(), null, null);
+		} catch (ClassNotFoundException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 
 	public int size() {
@@ -96,11 +105,24 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements Cloneable, S
 	}// 返回按照排序规则的最后一个键
 
 	public void putAll(MyMap<? extends K, ? extends V> map) {
-		// TODO 需要先学习buildFromSorted
 		int mapSize = map.size();
+		// 如果传入的map是可排序的，当前的map是空的并且map的比较器和当前的比较器相同
 		if (size == 0 && mapSize != 0 && map instanceof SortedMap) {
-
+			Comparator<?> c = ((MySortedMap<?, ?>) map).comparator();// 得到比较器
+			if (c == comparator || (c != null && c.equals(comparator))) {
+				++modCount;
+				try {
+					buildFromSorted(mapSize, map.entrySet().iterator(), null, null);
+				} catch (ClassNotFoundException e) {
+					e.printStackTrace();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+				return;
+			}
 		}
+		// 直接调用抽象类中的方法，一个个put
+		super.putAll(map);
 	}
 
 	// TODO 省略一系列查询方法，先学习添加元素的方法
@@ -665,18 +687,74 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements Cloneable, S
 		}
 	}
 
-	private void buildFromSorted(int size, Iterator<?> it, java.io.ObjectInputStream str, V defalutVal)
+	// 该方法是将所有的传入的元素都添加到map中去
+	private void buildFromSorted(int size, Iterator<?> it, java.io.ObjectInputStream str, V defaultVal)
 			throws java.io.IOException, ClassNotFoundException {
 		this.size = size;
+		root = this.buildFromSorted(0, 0, size - 1, computeRedLevel(size), it, str, defaultVal);
 	}
 
+	// 该方法通过递归的方式将部分的元素添加到map中去
+	/*
+	 * level:表示树现在构造到的深度
+	 * lo:表示需要添加的元素的起始位置
+	 * li:表示需要添加的元素的末尾位置
+	 * redLevel:
+	 * 需要变成红色的深度（所有的满二叉树层都可以直接用黑色，只有最后一层不满的需要使用红色这样才能保证所有路径上黑色的数目相等）
+	 * it和str:这两者只需要使用其中一个就可以了，优先使用it如果it为空就使用str
+	 * defaultVal:
+	 * 如果为空则表示iterator中的元素是完整的Entry如果不为空则表示iterator中的元素只是key，需要使用defalutVal来填充每一个值
+	 */
+	@SuppressWarnings("unchecked")
 	private final Entry<K, V> buildFromSorted(int level, int lo, int hi, int redLevel, Iterator<?> it,
 			java.io.ObjectInputStream str, V defaultVal) throws java.io.IOException, ClassNotFoundException {
-		return null;
+		if (hi < lo) return null;
+		int mid = (hi + lo) >>> 1;
+		Entry<K, V> left = null;
+		if (lo < mid) {
+			left = buildFromSorted(level, lo, mid - 1, redLevel, it, str, defaultVal);// 递归方式构建左子树
+		}
+
+		// 得到此次遍历的根节点
+		K key;
+		V value;
+		// 使用迭代器中的元素
+		if (it != null) {
+			if (defaultVal == null) {
+				MyMap.Entry<?, ?> entry = (MyMap.Entry<?, ?>) it.next();
+				key = (K) entry.getKey();
+				value = (V) entry.getValue();
+			}
+			else {
+				key = (K) it.next();
+				value = defaultVal;
+			}
+		}
+		// 使用str中的元素
+		else {
+			key = (K) str.readObject();
+			value = (defaultVal != null ? defaultVal : (V) str.readObject());
+		}
+
+		// 处理现在的根节点
+		Entry<K, V> middle = new Entry<K, V>(key, value, null);
+		if (level == redLevel) {
+			middle.color = RED;
+		}
+		if (left != null) {
+			middle.left = left;
+			left.parent = middle;
+		}
+		if (mid < hi) {
+			// 递归得到右子树
+			Entry<K, V> right = buildFromSorted(level, mid + 1, hi, redLevel, it, str, defaultVal);
+			middle.right = right;
+			right.parent = middle;
+		}
+		return middle;
 	}
 
-	// 该方法没有看明白
-	// TODO先睡觉，明天再来看,16-04-04
+	// 计算最后一层不满的层（需要使用红色节点）
 	private static int computeRedLevel(int sz) {
 		int level = 0;
 		for (int m = sz - 1; m >= 0; m = m / 2 - 1)
