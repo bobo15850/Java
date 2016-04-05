@@ -5,6 +5,8 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.TreeMap;
 
+import myutil.MyTreeMap;
+
 public class Test {
 	public static void main(String[] args) throws UnsupportedEncodingException {
 		// MyString ms1 = new MyString(new char[] { 's', 'a', 'b', 'b', 's',
@@ -65,9 +67,9 @@ public class Test {
 		// m.putAll(map);
 		// System.out.println(m.toString());
 
-		Map<String, String> map = new HashMap<String, String>();
-		map.put("11", "aa");
-		map.put("2", "b");
+		// Map<String, String> map = new HashMap<String, String>();
+		// map.put("11", "aa");
+		// map.put("2", "b");
 
 		// map.forEach((a, b) -> System.out.println(a + b));
 		// Collection<String> values = map.values();
@@ -92,5 +94,10 @@ public class Test {
 		// i.remove();
 		// System.out.println(map);
 
+		MyTreeMap<String, Integer> myMap = new MyTreeMap<>();
+		myMap.put("a", 1);
+		myMap.put("b", 2);
+		myMap.put("y", 4);
+		System.out.println(myMap.toString());
 	}
 }

@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.Comparator;
 import java.util.Iterator;
+import java.util.NavigableSet;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.SortedMap;
@@ -28,11 +29,11 @@ import java.util.SortedMap;
  * 紅黑树的插入方式：1.直接通过2，3,4数来插入，插入的时候直接调整
  * 				2.先插入二叉搜索树，在进行旋转和调整颜色
  */
-public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements Cloneable, Serializable {
+public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements MyNavigableMap<K, V>, Cloneable, Serializable {
 	private static final long serialVersionUID = -2987251376526992040L;
 
 	// 比较器，不可变，只能在初始化的时候指定,treemap中的顺序由key的顺序来确定 //
-	// TODO,为什么不直接在entry中继承comparable接口
+	// XXX,为什么不直接在entry中继承comparable接口
 	private final Comparator<? super K> comparator;
 
 	private transient Entry<K, V> root;// 根节点
@@ -55,7 +56,7 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements Cloneable, S
 	}// 使用一个常规map初始化treemap
 
 	// 通过一个排好序的map来初始化map调用buildFromSorted方法，递归的构造map
-	// TODO 如果马屁过大会不会造成stackoverflow？？？？
+	// XXX 如果map过大会不会造成stackoverflow？？？？
 	public MyTreeMap(SortedMap<K, ? extends V> m) {
 		this.comparator = m.comparator();
 		try {
@@ -125,7 +126,10 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements Cloneable, S
 		super.putAll(map);
 	}
 
-	// TODO 省略一系列查询方法，先学习添加元素的方法
+	/*
+	 * 下面的一系列方法是各种查询entry的的方法的具体实现，大于小于等于，大于等于，小于等于。。。
+	 */
+
 	final Entry<K, V> getEntry(Object key) {
 		if (comparator != null) {
 			return getEntryUsingComparator(key);
@@ -178,11 +182,32 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements Cloneable, S
 		return null;
 	}
 
+	final Entry<K, V> getLowerEntry(K key) {
+		// TODO
+		return null;
+	}
+
+	final Entry<K, V> getHigherEntry(K key) {
+		// TODO
+		return null;
+	}
+
+	final Entry<K, V> getCeilingEntry(K key) {
+		// TODO
+		return null;
+	}
+
+	final Entry<K, V> getFloorEntry(K key) {
+		// TODO
+		return null;
+	}
+
 	public V put(K key, V value) {
 		// 先找到所要添加的位置，然后红黑树的调整，使其符合红黑树的性质4,5
 		Entry<K, V> t = root;
-		if (root == null) {
-			t = new Entry<K, V>(key, value, null);
+		if (t == null) {
+			compare(key, key);// 调用本地方法，进行类型检查和也有可能是null值检查
+			root = new Entry<K, V>(key, value, null);
 			size = 1;
 			modCount++;
 			return null;
@@ -282,20 +307,146 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements Cloneable, S
 	// }
 
 	/*
-	 * 下面是静态工具方法
+	 * 以下的方法是实现NavigableMap的API方法
 	 */
-	// TODO
+
+	// 返回小于key的第一个entry
+	public MyMap.Entry<K, V> lowerEntry(K key) {
+		// TODO
+		return null;
+	}
+
+	public K lowerKey(K key) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	public MyMap.Entry<K, V> floorEntry(K key) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	public K floorKey(K key) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	public MyMap.Entry<K, V> ceilingEntry(K key) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	public K ceilingKey(K key) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	public MyMap.Entry<K, V> higherEntry(K key) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	public K higherKey(K key) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	public MyMap.Entry<K, V> firstEntry() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	public MyMap.Entry<K, V> lastEntry() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	public MyMap.Entry<K, V> pollFirstEntry() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	public MyMap.Entry<K, V> pollLastEntry() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	public MyNavigableMap<K, V> descendingMap() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	public NavigableSet<K> navigableKeySet() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	public NavigableSet<K> descendingKeySet() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	public MyNavigableMap<K, V> subMap(K fromKey, boolean fromInclusive, K toKey, boolean toInclusive) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	public MyNavigableMap<K, V> headMap(K toKey, boolean inclusive) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	public MyNavigableMap<K, V> tailMap(K fromKey, boolean inclusive) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	public MySortedMap<K, V> subMap(K fromKey, K toKey) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	public MySortedMap<K, V> headMap(K toKey) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	public MySortedMap<K, V> tailMap(K fromKey) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	/*
+	 * 下面是工具方法，对entry或者是key进行各种检查，或者是比较，导出等操作
+	 */
+
+	// 先进行类型转换，不成功会抛出异常，然后比较两个key的值
+	@SuppressWarnings("unchecked")
+	final int compare(Object k1, Object k2) {
+		return comparator == null ? ((Comparable<? super K>) k1).compareTo((K) k2) : comparator.compare((K) k1, (K) k2);
+	}
 
 	static final boolean valEquals(Object o1, Object o2) {
 		return o1 == null ? o2 == null : o1.equals(o2);// 避免了null检查
 	}// 判断两个value是否equals，如果是两个null返回true
 
+	// 返回不可变的entry对象 simpleImmutableEntry
+	static <K, V> MyMap.Entry<K, V> exportEntry(MyTreeMap.Entry<K, V> e) {
+		return e == null ? null : new MyAbstractMap.SimpleImmutableEntry<K, V>(e);
+	}
+
+	// 返回一个元组的键，如果元组为null则返回null
+	static <K, V> K KeyOrNull(MyTreeMap.Entry<K, V> e) {
+		return e == null ? null : e.key;
+	}
+
+	// 返回一个元组的键，如果键we为null则抛出异常
 	static <K> K key(Entry<K, ?> e) {
 		if (e == null) {
 			throw new NoSuchElementException();
 		}
 		return e.key;
-	}// 返回一个元组的键
+	}
 
 	private static final boolean RED = false;
 	private static final boolean BLACK = true;
@@ -348,9 +499,9 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements Cloneable, S
 		public int hashCode() {
 			int keyHash = key == null ? 0 : key.hashCode();
 			int valueHash = value == null ? 0 : value.hashCode();
-			// TODO 为什么hash值是两个hash取异或？？？？？
+			// XXX 为什么hash值是两个hash取异或？？？？？
 			return keyHash ^ valueHash;
-		}// TODO 作用是什么？？？treemap中entry的hash值我感觉并没有什么卵用？
+		}// XXX 作用是什么？？？treemap中entry的hash值我感觉并没有什么卵用？
 
 		public String toString() {
 			return key + "=" + value;
@@ -642,7 +793,7 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements Cloneable, S
 					x = parentOf(x);// 这里用while迭代代替了递归
 				}
 				else {
-					// TODO 这段代码不太理解是怎么进行操作的。。。
+					// IPT 这段代码不太理解是怎么进行操作的。。。
 					if (colorOf(rightOf(sib)) == BLACK) {
 						setColor(leftOf(sib), BLACK);
 						setColor(sib, RED);
@@ -761,6 +912,7 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements Cloneable, S
 			level++;
 		return level;
 	}
+
 }
 /*
  * 参考资料：
