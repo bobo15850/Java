@@ -4,13 +4,16 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.util.AbstractCollection;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.ConcurrentModificationException;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.NavigableMap;
 import java.util.NavigableSet;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.SortedSet;
@@ -418,26 +421,32 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements MyNavigableM
 		root = null;
 	}
 
-	// 返回一个浅拷贝，我觉得这个方法并没有什么卵用
-	// public Object clone() {
-	// MyTreeMap<?, ?> clone;
-	// try {
-	// clone = (MyTreeMap<?, ?>) super.clone();// 调用父类的拷贝方法
-	// } catch (CloneNotSupportedException e) {
-	// throw new InternalError(e);
-	// }
-	// // 将这个拷贝得到的对象设置为刚出生的状态，除了比较器
-	// clone.size = 0;
-	// clone.keySet = null;
-	// clone.modCount = 0;
-	// clone.root = null;
-	// clone.values = null;
-	// // TODO 这里还有其他的变量没有设置
-	//
-	// // 这个方法暂时无法完成
-	// return null;
-	//
-	// }
+	// 返回一个深拷贝,里面的元素也被拷贝
+	public Object clone() {
+		MyTreeMap<?, ?> clone;
+		try {
+			clone = (MyTreeMap<?, ?>) super.clone();// 调用父类的拷贝方法
+		} catch (CloneNotSupportedException e) {
+			throw new InternalError(e);
+		}
+		// 将这个拷贝得到的对象设置为刚出生的状态，除了比较器
+		clone.root = null;
+		clone.size = 0;
+		clone.modCount = 0;
+		clone.entrySet = null;
+		clone.navigableKeySet = null;
+		clone.descendingMap = null;
+		// XXX clone.values = null;，clone.keySet==null为什么不需要设置
+		try {
+			clone.buildFromSorted(size, entrySet().iterator(), null, null);
+		} catch (ClassNotFoundException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		// 这个方法暂时无法完成
+		return clone;
+	}
 
 	/*
 	 * 以下的方法是实现NavigableMap的API方法
@@ -573,30 +582,91 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements MyNavigableM
 		return null;
 	}
 
+	// 只有key和oldValue完全equals才能够用newValue替换oldValue
 	public boolean replace(K key, V oldValue, V newValue) {
-		// TODO
+		Entry<K, V> p = getEntry(key);
+		if (p != null && Objects.equals(oldValue, p.value)) {
+			p.value = newValue;
+			return true;
+		}
 		return false;
 	}
 
+	// 只要存在key就进行替换，并且返回原来value的值
 	public V replace(K key, V value) {
-		// TODO
+		Entry<K, V> p = getEntry(key);
+		if (p != null) {
+			V oldValue = p.value;
+			p.value = value;
+			return oldValue;
+		}
 		return null;
 	}
 
+	// 该方法是对每一个键值对执行统一的操作，使用了乐观锁的方式，在执行前后检查modCount是否一致
+	// 如果在执行操作的过程中，有键值对进行了更改，则会导致modCount不相同，抛出异常
+	// 该方法支持传入一个奈姆塔表达式
 	public void forEach(BiConsumer<? super K, ? super V> action) {
-		// TODO
+		Objects.requireNonNull(action);
+		int expectedModCount = modCount;
+		for (Entry<K, V> e = getFirstEntry(); e != null; e = successor(e)) {
+			action.accept(e.getKey(), e.getValue());
+			if (expectedModCount != modCount) {
+				throw new ConcurrentModificationException();
+			}
+		}
 	}
 
+	// 该方法的实现方式与以上方法相似
 	public void replaceAll(BiFunction<? super K, ? super V, ? extends V> function) {
-		// TODO
+		Objects.requireNonNull(function);
+		int expectedModCount = modCount;
+		for (Entry<K, V> e = getFirstEntry(); e != null; e = successor(e)) {
+			e.value = function.apply(e.getKey(), e.getValue());
+			if (expectedModCount != modCount) {
+				throw new ConcurrentModificationException();
+			}
+		}
 	}
 
 	/*
 	 * 以下是支持内部类
 	 */
 
-	class Values {
-		// TODO
+	class Values extends AbstractCollection<V> {
+
+		// 返回一个value的迭代器
+		public Iterator<V> iterator() {
+			return new ValueIterator(getFirstEntry());
+		}
+
+		public int size() {
+			return MyTreeMap.this.size;
+		}
+
+		public boolean contains(Object o) {
+			return MyTreeMap.this.containsValue(o);
+		}
+
+		// 该方法只会删除第一个找到的value的Entry
+		public boolean remove(Object o) {
+			for (Entry<K, V> e = getFirstEntry(); e != null; e = successor(e)) {
+				if (valEquals(e.getValue(), o)) {
+					deleteEntry(e);
+					return true;
+				}
+			}
+			return false;
+		}
+
+		public void clear() {
+			MyTreeMap.this.clear();
+		}
+
+		public Spliterator<V> spliterator() {
+			// TODO 返回一个分割迭代器，涉及到并行计算。。之后再来看
+			return null;
+		}
 	}
 
 	class EntrySet {
@@ -618,26 +688,125 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements MyNavigableM
 	}
 
 	/*
-	 * 下面是一系列的迭代器工具类
+	 * 下面是一系列的迭代器工具类，作为Iterator方法的返回类型
 	 */
-	abstract class PrivateEntryIterator<T> {
-		// TODO
+
+	// lastReturned表示现在所处的位置
+	abstract class PrivateEntryIterator<T> implements Iterator<T> {
+		Entry<K, V> next;
+		Entry<K, V> lastReturned;
+		int expectedModCount;
+
+		PrivateEntryIterator(Entry<K, V> first) {
+			expectedModCount = modCount;
+			lastReturned = null;
+			next = first;
+		}
+
+		public final boolean hasNext() {
+			return next != null;
+		}
+
+		// 返回现在正保存的元组，此过程中需要设置该内部类引用指向下一个
+		final Entry<K, V> nextEntry() {
+			Entry<K, V> e = next;
+			if (e == null) {
+				throw new NoSuchElementException();
+			}
+			if (modCount != expectedModCount) {
+				throw new ConcurrentModificationException();
+			}
+			next = successor(e);
+			lastReturned = e;
+			return e;
+		}
+
+		// 返回现在指向的引用，但是需要将指针指向前驱
+		final Entry<K, V> prevEntry() {
+			Entry<K, V> e = next;
+			if (e == null) {
+				throw new NoSuchElementException();
+			}
+			if (modCount != expectedModCount) {
+				throw new ConcurrentModificationException();
+			}
+			next = predecessor(e);
+			lastReturned = e;
+			return e;
+		}
+
+		// 删除当前lastReturned引用指向的entry
+		public void remove() {
+			if (lastReturned == null) {
+				throw new NoSuchElementException();
+			}
+			if (modCount != expectedModCount) {
+				throw new ConcurrentModificationException();
+			}
+			if (lastReturned.left != null && lastReturned.right != null) {
+				next = lastReturned;// XXX 之所以需要这样设置，是因为在删除一个既有左子树又有右子树的节点的时候
+				// 是将他的后继节点的内容直接设置在里面，然后删除其后继节点代替，所以原来的节点内存还在继续使用
+			}
+			deleteEntry(lastReturned);
+			expectedModCount = modCount;
+			lastReturned = null;
+		}
 	}
 
-	final class EntryIterator {
-		// TODO
+	// 元组的迭代器
+	final class EntryIterator extends PrivateEntryIterator<MyMap.Entry<K, V>> {
+		EntryIterator(Entry<K, V> first) {
+			super(first);
+		}
+
+		public MyMap.Entry<K, V> next() {
+			return nextEntry();
+		}
 	}
 
-	final class ValueIterator {
-		// TODO
+	// 值的迭代器,其实就是迭代元组，然后再返回其value
+	final class ValueIterator extends PrivateEntryIterator<V> {
+		ValueIterator(Entry<K, V> first) {
+			super(first);
+		}
+
+		public V next() {
+			return nextEntry().value;
+		}
 	}
 
-	final class KeyIterator {
-		// TODO
+	// 键的迭代器，就是利用entry进行迭代，然后返回key
+	final class KeyIterator extends PrivateEntryIterator<K> {
+		KeyIterator(Entry<K, V> first) {
+			super(first);
+		}
+
+		public K next() {
+			return nextEntry().key;
+		}
 	}
 
-	final class DescendingKeyIterator {
-		// TODO
+	final class DescendingKeyIterator extends PrivateEntryIterator<K> {
+		DescendingKeyIterator(Entry<K, V> first) {
+			super(first);
+		}
+
+		public K next() {
+			return prevEntry().key;
+		}
+
+		// 因为是向前遍历，所以不需要设置next
+		public void remove() {
+			if (lastReturned == null) {
+				throw new NoSuchElementException();
+			}
+			if (modCount != expectedModCount) {
+				throw new ConcurrentModificationException();
+			}
+			deleteEntry(lastReturned);
+			expectedModCount = modCount;
+			lastReturned = null;
+		}
 	}
 
 	/*
@@ -1035,7 +1204,7 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements MyNavigableM
 					x = parentOf(x);// 这里用while迭代代替了递归
 				}
 				else {
-					// IPT 这段代码不太理解是怎么进行操作的。。。
+					// XXX 这段代码不太理解是怎么进行操作的。。。
 					if (colorOf(rightOf(sib)) == BLACK) {
 						setColor(leftOf(sib), BLACK);
 						setColor(sib, RED);
@@ -1082,20 +1251,43 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements MyNavigableM
 
 	private static final long serialVersionUID = 919286545866124006L;
 
-	private void writeObject(ObjectOutputStream s) {
-		// TODO
+	// 该方法是自定义实现序列化写入对象的方法
+	private void writeObject(ObjectOutputStream s) throws IOException {
+		// 这个是serializable接口默认调用的方法
+		s.defaultWriteObject();
+		// 首先写入size
+		s.writeInt(size);
+
+		// 依次写入key和value
+		for (Iterator<MyMap.Entry<K, V>> i = entrySet().iterator(); i.hasNext();) {
+			MyMap.Entry<K, V> e = i.next();
+			s.writeObject(e.getKey());
+			s.writeObject(e.getValue());
+		}
 	}
 
-	private void readObject(ObjectInputStream s) {
-		// TODO
+	// 自定义序列化的读取对象方法
+	private void readObject(ObjectInputStream s) throws ClassNotFoundException, IOException {
+		// serializable接口默认调用的反序列化方法
+		s.defaultReadObject();
+		int size = s.readInt();
+		buildFromSorted(size, null, s, null);
 	}
 
-	void readTreeSet(int size, ObjectInputStream s, V defaultVal) {
-		// TODO
+	// 主要是给TreeSet提供反序列化的接口，因为TreeSet底层是使用TreeMap实现的
+	void readTreeSet(int size, ObjectInputStream s, V defaultVal) throws ClassNotFoundException, IOException {
+		buildFromSorted(size, null, s, defaultVal);
 	}
 
+	// 只要是给TreeSet的addAll方法准备的接口
 	void addAllFromTreeSet(SortedSet<? extends K> set, V defaultVal) {
-		// TODO
+		try {
+			buildFromSorted(set.size(), set.iterator(), null, defaultVal);
+		} catch (ClassNotFoundException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 
 	// 该方法是将所有的传入的元素都添加到map中去
@@ -1112,7 +1304,7 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements MyNavigableM
 	 * li:表示需要添加的元素的末尾位置
 	 * redLevel:
 	 * 需要变成红色的深度（所有的满二叉树层都可以直接用黑色，只有最后一层不满的需要使用红色这样才能保证所有路径上黑色的数目相等）
-	 * it和str:这两者只需要使用其中一个就可以了，优先使用it如果it为空就使用str
+	 * it和str:这两者只需要使用其中一个就可以了，优先使用it如果it为空就使用str,str主要是给反序列化准备的，其他的使用情况比较少
 	 * defaultVal:
 	 * 如果为空则表示iterator中的元素是完整的Entry如果不为空则表示iterator中的元素只是key，需要使用defalutVal来填充每一个值
 	 */
