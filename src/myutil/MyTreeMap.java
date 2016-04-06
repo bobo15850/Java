@@ -1,13 +1,23 @@
 package myutil;
 
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.io.Serializable;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.Iterator;
+import java.util.Map;
+import java.util.NavigableMap;
 import java.util.NavigableSet;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.SortedMap;
+import java.util.SortedSet;
+import java.util.Spliterator;
+import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
+import java.util.function.Consumer;
 
 /*
  * 通过红黑树来实现map
@@ -30,7 +40,6 @@ import java.util.SortedMap;
  * 				2.先插入二叉搜索树，在进行旋转和调整颜色
  */
 public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements MyNavigableMap<K, V>, Cloneable, Serializable {
-	private static final long serialVersionUID = -2987251376526992040L;
 
 	// 比较器，不可变，只能在初始化的时候指定,treemap中的顺序由key的顺序来确定 //
 	// XXX,为什么不直接在entry中继承comparable接口
@@ -434,6 +443,36 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements MyNavigableM
 	 * 以下的方法是实现NavigableMap的API方法
 	 */
 
+	// 返回第一个entry
+	public MyMap.Entry<K, V> firstEntry() {
+		return exportEntry(getFirstEntry());
+	}
+
+	// 返回最后一个entry
+	public MyMap.Entry<K, V> lastEntry() {
+		return exportEntry(getLastEntry());
+	}
+
+	// 返回并删除第一个entry
+	public MyMap.Entry<K, V> pollFirstEntry() {
+		Entry<K, V> p = getFirstEntry();
+		MyMap.Entry<K, V> result = exportEntry(p);
+		if (p != null) {
+			deleteEntry(p);
+		}
+		return result;
+	}
+
+	// 返回并删除最后一个entry
+	public MyMap.Entry<K, V> pollLastEntry() {
+		Entry<K, V> p = getLastEntry();
+		MyMap.Entry<K, V> result = exportEntry(p);
+		if (p != null) {
+			deleteEntry(p);
+		}
+		return result;
+	}
+
 	// 返回小于key的第一个entry
 	public MyMap.Entry<K, V> lowerEntry(K key) {
 		return exportEntry(getLowerEntry(key));
@@ -470,38 +509,12 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements MyNavigableM
 		return keyOrNull(getHigherEntry(key));
 	}
 
-	// 返回第一个entry
-	public MyMap.Entry<K, V> firstEntry() {
-		return exportEntry(getFirstEntry());
-	}
+	private transient EntrySet entrySet;
+	private transient KeySet<K> navigableKeySet;
+	private transient NavigableMap<K, V> descendingMap;
 
-	// 返回最后一个entry
-	public MyMap.Entry<K, V> lastEntry() {
-		return exportEntry(getLastEntry());
-	}
-
-	// 返回并删除第一个entry
-	public MyMap.Entry<K, V> pollFirstEntry() {
-		Entry<K, V> p = getFirstEntry();
-		MyMap.Entry<K, V> result = exportEntry(p);
-		if (p != null) {
-			deleteEntry(p);
-		}
-		return result;
-	}
-
-	// 返回并删除最后一个entry
-	public MyMap.Entry<K, V> pollLastEntry() {
-		Entry<K, V> p = getLastEntry();
-		MyMap.Entry<K, V> result = exportEntry(p);
-		if (p != null) {
-			deleteEntry(p);
-		}
-		return result;
-	}
-
-	public MyNavigableMap<K, V> descendingMap() {
-		// TODO Auto-generated method stub
+	public Set<K> keySet() {
+		// TODO
 		return null;
 	}
 
@@ -511,6 +524,21 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements MyNavigableM
 	}
 
 	public NavigableSet<K> descendingKeySet() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	public Collection<V> values() {
+		// TODO
+		return null;
+	}
+
+	public Set<MyMap.Entry<K, V>> entrySet() {
+		// TODO
+		return null;
+	}
+
+	public MyNavigableMap<K, V> descendingMap() {
 		// TODO Auto-generated method stub
 		return null;
 	}
@@ -545,6 +573,73 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements MyNavigableM
 		return null;
 	}
 
+	public boolean replace(K key, V oldValue, V newValue) {
+		// TODO
+		return false;
+	}
+
+	public V replace(K key, V value) {
+		// TODO
+		return null;
+	}
+
+	public void forEach(BiConsumer<? super K, ? super V> action) {
+		// TODO
+	}
+
+	public void replaceAll(BiFunction<? super K, ? super V, ? extends V> function) {
+		// TODO
+	}
+
+	/*
+	 * 以下是支持内部类
+	 */
+
+	class Values {
+		// TODO
+	}
+
+	class EntrySet {
+		// TODO
+	}
+
+	Iterator<K> keyIterator() {
+		// TODO
+		return null;
+	}
+
+	Iterator<K> descendingKeyIterator() {
+		// TODO
+		return null;
+	}
+
+	static final class KeySet<E> {
+		// TODO
+	}
+
+	/*
+	 * 下面是一系列的迭代器工具类
+	 */
+	abstract class PrivateEntryIterator<T> {
+		// TODO
+	}
+
+	final class EntryIterator {
+		// TODO
+	}
+
+	final class ValueIterator {
+		// TODO
+	}
+
+	final class KeyIterator {
+		// TODO
+	}
+
+	final class DescendingKeyIterator {
+		// TODO
+	}
+
 	/*
 	 * 下面是工具方法，对entry或者是key进行各种检查，或者是比较，导出等操作
 	 */
@@ -575,6 +670,28 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements MyNavigableM
 			throw new NoSuchElementException();
 		}
 		return e.key;
+	}
+
+	private static final Object UNBOUNDED = new Object();
+
+	/*
+	 * 下面是一系列的submap
+	 */
+
+	abstract static class NavigableSubMap<K, V> {
+		// TODO
+	}
+
+	static final class AscendingSubMap<K, V> {
+		// TODO
+	}
+
+	static final class DescendingSubMap<K, V> {
+		// TODO
+	}
+
+	private class SubMap {
+		// TODO
 	}
 
 	private static final boolean RED = false;
@@ -705,10 +822,6 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements MyNavigableM
 			}
 			return p;
 		}
-	}
-
-	public Set<MyMap.Entry<K, V>> entrySet() {
-		return null;
 	}
 
 	/*
@@ -967,6 +1080,24 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements MyNavigableM
 		}
 	}
 
+	private static final long serialVersionUID = 919286545866124006L;
+
+	private void writeObject(ObjectOutputStream s) {
+		// TODO
+	}
+
+	private void readObject(ObjectInputStream s) {
+		// TODO
+	}
+
+	void readTreeSet(int size, ObjectInputStream s, V defaultVal) {
+		// TODO
+	}
+
+	void addAllFromTreeSet(SortedSet<? extends K> set, V defaultVal) {
+		// TODO
+	}
+
 	// 该方法是将所有的传入的元素都添加到map中去
 	private void buildFromSorted(int size, Iterator<?> it, java.io.ObjectInputStream str, V defaultVal)
 			throws java.io.IOException, ClassNotFoundException {
@@ -1042,6 +1173,136 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements MyNavigableM
 		return level;
 	}
 
+	static <K> Spliterator<K> keySpliteratorFor(NavigableMap<K, ?> map) {
+		// TODO
+		return null;
+	}
+
+	final Spliterator<K> keySpliterator() {
+		// TODO
+		return null;
+	}
+
+	final Spliterator<K> descendingKeySpliterator() {
+		// TODO
+		return null;
+	}
+
+	static class TreeMapSpliterator<K, V> {
+		// TODO
+	}
+
+	static final class KeySpliterator<K, V> extends TreeMapSpliterator<K, V> implements Spliterator<K> {
+
+		@Override
+		public boolean tryAdvance(Consumer<? super K> action) {
+			// TODO Auto-generated method stub
+			return false;
+		}
+
+		@Override
+		public Spliterator<K> trySplit() {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		@Override
+		public long estimateSize() {
+			// TODO Auto-generated method stub
+			return 0;
+		}
+
+		@Override
+		public int characteristics() {
+			// TODO Auto-generated method stub
+			return 0;
+		}
+
+	}
+
+	static final class DescendingKeySpliterator<K, V> extends TreeMapSpliterator<K, V> implements Spliterator<K> {
+
+		@Override
+		public boolean tryAdvance(Consumer<? super K> action) {
+			// TODO Auto-generated method stub
+			return false;
+		}
+
+		@Override
+		public Spliterator<K> trySplit() {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		@Override
+		public long estimateSize() {
+			// TODO Auto-generated method stub
+			return 0;
+		}
+
+		@Override
+		public int characteristics() {
+			// TODO Auto-generated method stub
+			return 0;
+		}
+
+	}
+
+	static final class ValueSpliterator<K, V> extends TreeMapSpliterator<K, V> implements Spliterator<V> {
+
+		@Override
+		public boolean tryAdvance(Consumer<? super V> action) {
+			// TODO Auto-generated method stub
+			return false;
+		}
+
+		@Override
+		public Spliterator<V> trySplit() {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		@Override
+		public long estimateSize() {
+			// TODO Auto-generated method stub
+			return 0;
+		}
+
+		@Override
+		public int characteristics() {
+			// TODO Auto-generated method stub
+			return 0;
+		}
+
+	}
+
+	static final class EntrySpliterator<K, V> extends TreeMapSpliterator<K, V> implements Spliterator<Map.Entry<K, V>> {
+
+		@Override
+		public boolean tryAdvance(Consumer<? super java.util.Map.Entry<K, V>> action) {
+			// TODO Auto-generated method stub
+			return false;
+		}
+
+		@Override
+		public Spliterator<java.util.Map.Entry<K, V>> trySplit() {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		@Override
+		public long estimateSize() {
+			// TODO Auto-generated method stub
+			return 0;
+		}
+
+		@Override
+		public int characteristics() {
+			// TODO Auto-generated method stub
+			return 0;
+		}
+
+	}
 }
 /*
  * 参考资料：
