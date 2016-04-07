@@ -894,6 +894,174 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements MyNavigableM
 
 	abstract static class NavigableSubMap<K, V> extends MyAbstractMap<K, V> implements MyNavigableMap<K, V>,
 			java.io.Serializable {
+		private static final long serialVersionUID = -2102997345730753016L;
+
+		final MyTreeMap<K, V> m;
+
+		final K lo, hi;
+		final boolean fromStart, toEnd;
+		final boolean loInclusive, hiInclusive;
+
+		public NavigableSubMap(MyTreeMap<K, V> m, boolean fromStart, K lo, boolean loInclusive, boolean toEnd, K hi,
+				boolean hiInclusive) {
+			if (!fromStart && !toEnd) {
+				if (m.compare(lo, hi) > 0) {// 这里也进行类型以及空值检查，然后判断lo是否在hi前面
+					throw new IllegalArgumentException("fromKey > toKey");
+				}
+			}
+			else {
+				// 类型检查以及空值检查
+				if (!fromStart) {
+					m.compare(lo, lo);
+				}
+				if (!toEnd) {
+					m.compare(hi, hi);
+				}
+			}
+
+			this.m = m;
+			this.fromStart = fromStart;
+			this.lo = lo;
+			this.loInclusive = loInclusive;
+			this.toEnd = toEnd;
+			this.hi = hi;
+			this.hiInclusive = hiInclusive;
+		}
+
+		/*
+		 * 以下的方法用来判断传入的key是否在submap中
+		 */
+		// 判断某个key是否在创建submap时指定的lo之下
+		final boolean tooLow(Object key) {
+			if (!fromStart) {
+				int c = m.compare(key, lo);
+				if (c < 0 || (c == 0 && !loInclusive)) {
+					return true;
+				}
+			}
+			return false;
+		}
+
+		// 判断某个key是否在创建的submap时指定的hi之上
+		final boolean tooHigh(Object key) {
+			if (!toEnd) {
+				int c = m.compare(key, hi);
+				if (c > 0 || (c == 0 && !hiInclusive)) {
+					return true;
+				}
+			}
+			return false;
+		}
+
+		// 判断一个key是否在指定的lo和hi之间,区间的开闭由初始化的时候指定
+		final boolean inRange(Object key) {
+			return (!tooLow(key)) && (!tooHigh(key));
+		}
+
+		// 判断一个key是否在闭区间lo和hi之间
+		final boolean inClosedRange(Object key) {
+			return (fromStart || m.compare(key, lo) >= 0) && (toEnd || m.compare(key, hi) <= 0);
+		}
+
+		// inclusive参数的含义是：如果是true则说明返回 由lo/hi inclusive决定的区间情况，false则返回闭区间情况
+		final boolean inRange(Object key, boolean inclusive) {
+			return inclusive ? inRange(key) : inClosedRange(key);
+		}
+
+		/*
+		 * 以下的方法用来返回在map中的绝对位置的值
+		 */
+
+		// 返回在这个子map中最小的元素
+		final MyTreeMap.Entry<K, V> absLowest() {
+			MyTreeMap.Entry<K, V> e = fromStart ? m.getFirstEntry() : (loInclusive ? m.getCeilingEntry(lo) : m
+					.getHigherEntry(lo));
+
+			// 当lo是最后一个元素的时候就可能tooHigh
+			return (e == null || tooHigh(e)) ? null : e;
+		}
+
+		// 返回在这个子map中最大的元素
+		final MyTreeMap.Entry<K, V> absHighest() {
+			MyTreeMap.Entry<K, V> e = toEnd ? m.getLastEntry() : (hiInclusive ? m.getFloorEntry(hi) : m
+					.getLowerEntry(hi));
+			return (e == null || tooLow(e)) ? null : e;
+		}
+
+		// 返回大于等于key的第一个
+		final MyTreeMap.Entry<K, V> absCeiling(K key) {
+			if (tooLow(key)) {
+				return absLowest();
+			}
+			MyTreeMap.Entry<K, V> e = m.getCeilingEntry(key);
+			return (e == null || tooHigh(e)) ? null : e;
+		}
+
+		// 返回大于key的第一个
+		final MyTreeMap.Entry<K, V> absHigher(K key) {
+			if (tooLow(key)) {
+				return absLowest();
+			}
+			MyTreeMap.Entry<K, V> e = m.getHigherEntry(key);
+			return (e == null || tooHigh(e)) ? null : e;
+		}
+
+		// 返回小于等于key的第一个
+		final MyTreeMap.Entry<K, V> absFloor(K key) {
+			if (tooHigh(key)) {
+				return absHighest();
+			}
+			MyTreeMap.Entry<K, V> e = m.getFloorEntry(key);
+			return (e == null || tooLow(key)) ? null : e;
+		}
+
+		// 返回小于key的第一个
+		final MyTreeMap.Entry<K, V> absLower(K key) {
+			if (tooHigh(key)) {
+				return absHighest();
+			}
+			MyTreeMap.Entry<K, V> e = m.getLowerEntry(key);
+			return (e == null || tooLow(key)) ? null : e;
+		}
+
+		// 返回上界以外的第一个元素（围墙元素，该元素不包含在子map中）
+		final MyTreeMap.Entry<K, V> absHighFence() {
+			return toEnd ? null : (hiInclusive ? m.getHigherEntry(hi) : m.getCeilingEntry(hi));
+		}
+
+		// 返回下界以外的第一个元素（围墙元素，该元素不包含在子map中）
+		final MyTreeMap.Entry<K, V> absLowFence() {
+			return fromStart ? null : (loInclusive ? m.getLowerEntry(lo) : m.getFloorEntry(lo));
+		}
+
+		/*
+		 * 以下抽象方法是子类需要实现的，在ascendingmap和descendingmap中的相对值，不同的子类实现不同
+		 */
+
+		abstract MyTreeMap.Entry<K, V> subLowest();
+
+		abstract MyTreeMap.Entry<K, V> subHighest();
+
+		abstract MyTreeMap.Entry<K, V> subCeiling(K key);
+
+		abstract MyTreeMap.Entry<K, V> subHigher(K key);
+
+		abstract MyTreeMap.Entry<K, V> subFloor(K key);
+
+		abstract MyTreeMap.Entry<K, V> subLower(K key);
+
+		// 这个是针对实现类的顺序来说的，相对于实现类是正的
+		abstract Iterator<K> keyIterator();
+
+		abstract Spliterator<K> keySpliterator();
+
+		// 相对于实现类的顺序是反的
+		abstract Iterator<K> descendingKeyIterator();
+
+		/*
+		 * 下面是一系列的navigableMap的API方法，通过调用内部的方法实现
+		 */
+
 		// TODO
 	}
 
