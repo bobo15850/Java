@@ -5,17 +5,15 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.AbstractCollection;
+import java.util.AbstractSet;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.ConcurrentModificationException;
 import java.util.Iterator;
-import java.util.Map;
-import java.util.NavigableMap;
 import java.util.NavigableSet;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.Set;
-import java.util.SortedMap;
 import java.util.SortedSet;
 import java.util.Spliterator;
 import java.util.function.BiConsumer;
@@ -69,7 +67,7 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements MyNavigableM
 
 	// 通过一个排好序的map来初始化map调用buildFromSorted方法，递归的构造map
 	// XXX 如果map过大会不会造成stackoverflow？？？？
-	public MyTreeMap(SortedMap<K, ? extends V> m) {
+	public MyTreeMap(MySortedMap<K, ? extends V> m) {
 		this.comparator = m.comparator();
 		try {
 			buildFromSorted(m.size(), m.entrySet().iterator(), null, null);
@@ -120,7 +118,7 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements MyNavigableM
 	public void putAll(MyMap<? extends K, ? extends V> map) {
 		int mapSize = map.size();
 		// 如果传入的map是可排序的，当前的map是空的并且map的比较器和当前的比较器相同
-		if (size == 0 && mapSize != 0 && map instanceof SortedMap) {
+		if (size == 0 && mapSize != 0 && map instanceof MySortedMap) {
 			Comparator<?> c = ((MySortedMap<?, ?>) map).comparator();// 得到比较器
 			if (c == comparator || (c != null && c.equals(comparator))) {
 				++modCount;
@@ -520,7 +518,7 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements MyNavigableM
 
 	private transient EntrySet entrySet;
 	private transient KeySet<K> navigableKeySet;
-	private transient NavigableMap<K, V> descendingMap;
+	private transient MyNavigableMap<K, V> descendingMap;
 
 	public Set<K> keySet() {
 		// TODO
@@ -537,9 +535,10 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements MyNavigableM
 		return null;
 	}
 
+	// 返回值的集合,values属性，实施懒加载模式
 	public Collection<V> values() {
-		// TODO
-		return null;
+		Collection<V> vs = values;
+		return vs != null ? vs : (values = new Values());
 	}
 
 	public Set<MyMap.Entry<K, V>> entrySet() {
@@ -669,22 +668,68 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements MyNavigableM
 		}
 	}
 
-	class EntrySet {
-		// TODO
+	class EntrySet extends AbstractSet<MyMap.Entry<K, V>> {
+
+		public Iterator<MyMap.Entry<K, V>> iterator() {
+			return new EntryIterator(getFirstEntry());
+		}
+
+		// 必须要键和值全都相等才能算是相等
+		public boolean contains(Object o) {
+			if (!(o instanceof MyMap.Entry)) {
+				return false;
+			}
+			MyMap.Entry<?, ?> entry = (MyMap.Entry<?, ?>) o;
+			Object value = entry.getValue();
+			Entry<K, V> p = getEntry(entry.getKey());
+			return p != null && valEquals(p.getValue(), value);
+		}
+
+		public boolean remove(Object o) {
+			if (!(o instanceof MyMap.Entry)) {
+				return false;
+			}
+			MyMap.Entry<?, ?> entry = (MyMap.Entry<?, ?>) o;
+			Object value = entry.getValue();
+			Entry<K, V> p = getEntry(entry.getKey());
+			if (p != null && valEquals(p.getValue(), value)) {
+				deleteEntry(p);
+				return true;
+			}
+			return false;
+		}
+
+		public int size() {
+			return MyTreeMap.this.size;
+		}
+
+		public void clear() {
+			MyTreeMap.this.clear();
+		}
+
+		public Spliterator<MyMap.Entry<K, V>> spliterator() {
+			// TODO
+			return null;
+		}
 	}
 
 	Iterator<K> keyIterator() {
-		// TODO
-		return null;
+		return new KeyIterator(getFirstEntry());
 	}
 
 	Iterator<K> descendingKeyIterator() {
-		// TODO
-		return null;
+		return new DescendingKeyIterator(getLastEntry());
 	}
 
 	static final class KeySet<E> {
-		// TODO
+
+		private final MyNavigableMap<E, ?> m;
+
+		KeySet(MyNavigableMap<E, ?> map) {
+			m = map;
+		}
+		// TODO 这个方法需要用到一系列的子map，稍后再写
+
 	}
 
 	/*
@@ -847,7 +892,8 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements MyNavigableM
 	 * 下面是一系列的submap
 	 */
 
-	abstract static class NavigableSubMap<K, V> {
+	abstract static class NavigableSubMap<K, V> extends MyAbstractMap<K, V> implements MyNavigableMap<K, V>,
+			java.io.Serializable {
 		// TODO
 	}
 
@@ -859,8 +905,47 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements MyNavigableM
 		// TODO
 	}
 
-	private class SubMap {
-		// TODO
+	// 这个类的作用只是为了做版本兼容，以前的版本不支持navigablemap，现在可以把这个映射到ascendingmap
+	private class SubMap extends MyAbstractMap<K, V> implements MySortedMap<K, V>, Serializable {
+		private static final long serialVersionUID = -6520786458950516097L;
+
+		private boolean fromStart = false, toEnd = false;
+		private K fromKey, toKey;
+
+		private Object readResolve() {
+			// TODO
+			return null;
+			// return new AscendingSubMap<>(MyTreeMap.this, fromStart, fromKey,
+			// true, toEnd, toKey, false);
+		}
+
+		public Set<MyMap.Entry<K, V>> entrySet() {
+			throw new InternalError();
+		}
+
+		public K lastKey() {
+			throw new InternalError();
+		}
+
+		public K firstKey() {
+			throw new InternalError();
+		}
+
+		public MySortedMap<K, V> subMap(K fromKey, K toKey) {
+			throw new InternalError();
+		}
+
+		public MySortedMap<K, V> headMap(K toKey) {
+			throw new InternalError();
+		}
+
+		public MySortedMap<K, V> tailMap(K fromKey) {
+			throw new InternalError();
+		}
+
+		public Comparator<? super K> comparator() {
+			throw new InternalError();
+		}
 	}
 
 	private static final boolean RED = false;
@@ -1365,7 +1450,7 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements MyNavigableM
 		return level;
 	}
 
-	static <K> Spliterator<K> keySpliteratorFor(NavigableMap<K, ?> map) {
+	static <K> Spliterator<K> keySpliteratorFor(MyNavigableMap<K, ?> map) {
 		// TODO
 		return null;
 	}
@@ -1468,16 +1553,17 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements MyNavigableM
 
 	}
 
-	static final class EntrySpliterator<K, V> extends TreeMapSpliterator<K, V> implements Spliterator<Map.Entry<K, V>> {
+	static final class EntrySpliterator<K, V> extends TreeMapSpliterator<K, V> implements
+			Spliterator<MyMap.Entry<K, V>> {
 
 		@Override
-		public boolean tryAdvance(Consumer<? super java.util.Map.Entry<K, V>> action) {
+		public boolean tryAdvance(Consumer<? super MyMap.Entry<K, V>> action) {
 			// TODO Auto-generated method stub
 			return false;
 		}
 
 		@Override
-		public Spliterator<java.util.Map.Entry<K, V>> trySplit() {
+		public Spliterator<MyMap.Entry<K, V>> trySplit() {
 			// TODO Auto-generated method stub
 			return null;
 		}
