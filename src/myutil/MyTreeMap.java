@@ -7,6 +7,7 @@ import java.io.Serializable;
 import java.util.AbstractCollection;
 import java.util.AbstractSet;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.ConcurrentModificationException;
 import java.util.Iterator;
@@ -521,18 +522,16 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements MyNavigableM
 	private transient MyNavigableMap<K, V> descendingMap;
 
 	public Set<K> keySet() {
-		// TODO
-		return null;
+		return navigableKeySet();
 	}
 
 	public NavigableSet<K> navigableKeySet() {
-		// TODO Auto-generated method stub
-		return null;
+		KeySet<K> nks = navigableKeySet;
+		return (nks != null) ? nks : (navigableKeySet = new KeySet<K>(this));
 	}
 
 	public NavigableSet<K> descendingKeySet() {
-		// TODO Auto-generated method stub
-		return null;
+		return descendingMap().navigableKeySet();
 	}
 
 	// 返回值的集合,values属性，实施懒加载模式
@@ -542,43 +541,37 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements MyNavigableM
 	}
 
 	public Set<MyMap.Entry<K, V>> entrySet() {
-		// TODO
-		return null;
+		EntrySet es = entrySet;
+		return es != null ? es : (entrySet = new EntrySet());
 	}
 
 	public MyNavigableMap<K, V> descendingMap() {
-		// TODO Auto-generated method stub
-		return null;
+		MyNavigableMap<K, V> km = descendingMap;
+		return km != null ? km : (descendingMap = new DescendingSubMap<>(this, true, null, true, true, null, true));
 	}
 
 	public MyNavigableMap<K, V> subMap(K fromKey, boolean fromInclusive, K toKey, boolean toInclusive) {
-		// TODO Auto-generated method stub
-		return null;
+		return new AscendingSubMap<>(this, false, fromKey, fromInclusive, false, toKey, toInclusive);
 	}
 
 	public MyNavigableMap<K, V> headMap(K toKey, boolean inclusive) {
-		// TODO Auto-generated method stub
-		return null;
+		return new AscendingSubMap<>(this, true, null, true, false, toKey, inclusive);
 	}
 
 	public MyNavigableMap<K, V> tailMap(K fromKey, boolean inclusive) {
-		// TODO Auto-generated method stub
-		return null;
+		return new AscendingSubMap<>(this, false, fromKey, inclusive, true, null, true);
 	}
 
 	public MySortedMap<K, V> subMap(K fromKey, K toKey) {
-		// TODO Auto-generated method stub
-		return null;
+		return subMap(fromKey, true, toKey, false);
 	}
 
 	public MySortedMap<K, V> headMap(K toKey) {
-		// TODO Auto-generated method stub
-		return null;
+		return headMap(toKey, false);
 	}
 
 	public MySortedMap<K, V> tailMap(K fromKey) {
-		// TODO Auto-generated method stub
-		return null;
+		return tailMap(fromKey, true);
 	}
 
 	// 只有key和oldValue完全equals才能够用newValue替换oldValue
@@ -1442,14 +1435,299 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements MyNavigableM
 			}
 		}
 
+		final class SubMapEntryIterator extends SubMapIterator<MyMap.Entry<K, V>> {
+			SubMapEntryIterator(MyTreeMap.Entry<K, V> first, MyTreeMap.Entry<K, V> fence) {
+				super(first, fence);
+			}
+
+			public myutil.MyMap.Entry<K, V> next() {
+				return nextEntry();
+			}
+
+			public void remove() {
+				removeAscending();
+			}
+		}
+
+		final class DescendingSubMapEntryIterator extends SubMapIterator<MyMap.Entry<K, V>> {
+			DescendingSubMapEntryIterator(myutil.MyTreeMap.Entry<K, V> first, myutil.MyTreeMap.Entry<K, V> fence) {
+				super(first, fence);
+			}
+
+			public myutil.MyMap.Entry<K, V> next() {
+				return nextEntry();
+			}
+
+			public void remove() {
+				removeDescending();
+			}
+		}
+
+		final class SubMapKeyIterator extends SubMapIterator<K> implements Spliterator<K> {
+			SubMapKeyIterator(MyTreeMap.Entry<K, V> first, MyTreeMap.Entry<K, V> fence) {
+				super(first, fence);
+			}
+
+			public K next() {
+				return nextEntry().key;
+			}
+
+			public void remove() {
+				removeAscending();
+			}
+
+			// TODO 不理解
+			/*
+			 * 下面几个方法为spliterator准备的，不太理解
+			 */
+			public void forEachRemaining(Consumer<? super K> action) {
+				while (hasNext())
+					action.accept(next());
+			}
+
+			public boolean tryAdvance(Consumer<? super K> action) {
+				if (hasNext()) {
+					action.accept(next());
+					return true;
+				}
+				return false;
+			}
+
+			public Spliterator<K> trySplit() {
+				return null;
+			}
+
+			public long estimateSize() {
+				return Long.MAX_VALUE;
+			}
+
+			public int characteristics() {
+				return Spliterator.DISTINCT | Spliterator.ORDERED | Spliterator.SORTED;
+			}
+
+			public final Comparator<? super K> getComparator() {
+				return NavigableSubMap.this.comparator();
+			}
+		}
+
+		final class DescendingSubMapKeyIterator extends SubMapIterator<K> implements Spliterator<K> {
+
+			DescendingSubMapKeyIterator(MyTreeMap.Entry<K, V> first, MyTreeMap.Entry<K, V> fence) {
+				super(first, fence);
+			}
+
+			public K next() {
+				return prevEntry().key;
+			}
+
+			public void remove() {
+				removeDescending();
+			}
+
+			// TODO 不理解
+			/*
+			 * 下面几个方法为spliterator准备的，不太理解
+			 */
+			public void forEachRemaining(Consumer<? super K> action) {
+				while (hasNext())
+					action.accept(next());
+			}
+
+			public boolean tryAdvance(Consumer<? super K> action) {
+				if (hasNext()) {
+					action.accept(next());
+					return true;
+				}
+				return false;
+			}
+
+			public Spliterator<K> trySplit() {
+				return null;
+			}
+
+			public long estimateSize() {
+				return Long.MAX_VALUE;
+			}
+
+			public int characteristics() {
+				return Spliterator.DISTINCT | Spliterator.ORDERED;
+			}
+
+		}
 	}
 
-	static final class AscendingSubMap<K, V> {
-		// TODO
+	static final class AscendingSubMap<K, V> extends NavigableSubMap<K, V> {
+		private static final long serialVersionUID = 912986545866124060L;
+
+		AscendingSubMap(MyTreeMap<K, V> m, boolean fromStart, K lo, boolean loInclusive, boolean toEnd, K hi,
+				boolean hiInclusive) {
+			super(m, fromStart, lo, loInclusive, toEnd, hi, hiInclusive);
+		}
+
+		public Comparator<? super K> comparator() {
+			return m.comparator();
+		}
+
+		public MyNavigableMap<K, V> subMap(K fromKey, boolean fromInclusive, K toKey, boolean toInclusive) {
+			if (!inRange(fromKey, fromInclusive))
+				throw new IllegalArgumentException("fromKey out of range");
+			if (!inRange(toKey, toInclusive))
+				throw new IllegalArgumentException("toKey out of range");
+			return new AscendingSubMap<>(m, false, fromKey, fromInclusive, false, toKey, toInclusive);
+		}
+
+		public MyNavigableMap<K, V> headMap(K toKey, boolean inclusive) {
+			if (!inRange(toKey, inclusive))
+				throw new IllegalArgumentException("toKey out of range");
+			return new AscendingSubMap<>(m, fromStart, lo, loInclusive, false, toKey, inclusive);
+		}
+
+		public MyNavigableMap<K, V> tailMap(K fromKey, boolean inclusive) {
+			if (!inRange(fromKey, inclusive))
+				throw new IllegalArgumentException("fromKey out of range");
+			return new AscendingSubMap<>(m, false, fromKey, inclusive, toEnd, hi, hiInclusive);
+		}
+
+		public MyNavigableMap<K, V> descendingMap() {
+			MyNavigableMap<K, V> mv = descendingMapView;
+			return (mv != null) ? mv : (descendingMapView = new DescendingSubMap<>(m, fromStart, lo, loInclusive,
+					toEnd, hi, hiInclusive));
+		}
+
+		Iterator<K> keyIterator() {
+			return new SubMapKeyIterator(absLowest(), absHighFence());
+		}
+
+		Spliterator<K> keySpliterator() {
+			return new SubMapKeyIterator(absLowest(), absHighFence());
+		}
+
+		Iterator<K> descendingKeyIterator() {
+			return new DescendingSubMapKeyIterator(absHighest(), absLowFence());
+		}
+
+		final class AscendingEntrySetView extends EntrySetView {
+			public Iterator<MyMap.Entry<K, V>> iterator() {
+				return new SubMapEntryIterator(absLowest(), absHighFence());
+			}
+		}
+
+		public Set<MyMap.Entry<K, V>> entrySet() {
+			EntrySetView es = entrySetView;
+			return (es != null) ? es : (entrySetView = new AscendingEntrySetView());
+		}
+
+		MyTreeMap.Entry<K, V> subLowest() {
+			return absLowest();
+		}
+
+		MyTreeMap.Entry<K, V> subHighest() {
+			return absHighest();
+		}
+
+		MyTreeMap.Entry<K, V> subCeiling(K key) {
+			return absCeiling(key);
+		}
+
+		MyTreeMap.Entry<K, V> subHigher(K key) {
+			return absHigher(key);
+		}
+
+		MyTreeMap.Entry<K, V> subFloor(K key) {
+			return absFloor(key);
+		}
+
+		MyTreeMap.Entry<K, V> subLower(K key) {
+			return absLower(key);
+		}
 	}
 
-	static final class DescendingSubMap<K, V> {
-		// TODO
+	static final class DescendingSubMap<K, V> extends NavigableSubMap<K, V> {
+		private static final long serialVersionUID = 912986545866120460L;
+
+		DescendingSubMap(MyTreeMap<K, V> m, boolean fromStart, K lo, boolean loInclusive, boolean toEnd, K hi,
+				boolean hiInclusive) {
+			super(m, fromStart, lo, loInclusive, toEnd, hi, hiInclusive);
+		}
+
+		private final Comparator<? super K> reverseComparator = Collections.reverseOrder(m.comparator);
+
+		public Comparator<? super K> comparator() {
+			return reverseComparator;
+		}
+
+		public MyNavigableMap<K, V> subMap(K fromKey, boolean fromInclusive, K toKey, boolean toInclusive) {
+			if (!inRange(fromKey, fromInclusive))
+				throw new IllegalArgumentException("fromKey out of range");
+			if (!inRange(toKey, toInclusive))
+				throw new IllegalArgumentException("toKey out of range");
+			return new DescendingSubMap<>(m, false, toKey, toInclusive, false, fromKey, fromInclusive);
+		}
+
+		public MyNavigableMap<K, V> headMap(K toKey, boolean inclusive) {
+			if (!inRange(toKey, inclusive))
+				throw new IllegalArgumentException("toKey out of range");
+			return new DescendingSubMap<>(m, false, toKey, inclusive, toEnd, hi, hiInclusive);
+		}
+
+		public MyNavigableMap<K, V> tailMap(K fromKey, boolean inclusive) {
+			if (!inRange(fromKey, inclusive))
+				throw new IllegalArgumentException("fromKey out of range");
+			return new DescendingSubMap<>(m, fromStart, lo, loInclusive, false, fromKey, inclusive);
+		}
+
+		public MyNavigableMap<K, V> descendingMap() {
+			MyNavigableMap<K, V> mv = descendingMapView;
+			return (mv != null) ? mv : (descendingMapView = new AscendingSubMap<>(m, fromStart, lo, loInclusive, toEnd,
+					hi, hiInclusive));
+		}
+
+		Iterator<K> keyIterator() {
+			return new DescendingSubMapKeyIterator(absHighest(), absLowFence());
+		}
+
+		Spliterator<K> keySpliterator() {
+			return new DescendingSubMapKeyIterator(absHighest(), absLowFence());
+		}
+
+		Iterator<K> descendingKeyIterator() {
+			return new SubMapKeyIterator(absLowest(), absHighFence());
+		}
+
+		final class DescendingEntrySetView extends EntrySetView {
+			public Iterator<MyMap.Entry<K, V>> iterator() {
+				return new DescendingSubMapEntryIterator(absHighest(), absLowFence());
+			}
+		}
+
+		public Set<MyMap.Entry<K, V>> entrySet() {
+			EntrySetView es = entrySetView;
+			return (es != null) ? es : (entrySetView = new DescendingEntrySetView());
+		}
+
+		MyTreeMap.Entry<K, V> subLowest() {
+			return absHighest();
+		}
+
+		MyTreeMap.Entry<K, V> subHighest() {
+			return absLowest();
+		}
+
+		MyTreeMap.Entry<K, V> subCeiling(K key) {
+			return absFloor(key);
+		}
+
+		MyTreeMap.Entry<K, V> subHigher(K key) {
+			return absLower(key);
+		}
+
+		MyTreeMap.Entry<K, V> subFloor(K key) {
+			return absCeiling(key);
+		}
+
+		MyTreeMap.Entry<K, V> subLower(K key) {
+			return absHigher(key);
+		}
 	}
 
 	// 这个类的作用只是为了做版本兼容，以前的版本不支持navigablemap，现在可以把这个映射到ascendingmap
