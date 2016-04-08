@@ -1738,10 +1738,7 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements MyNavigableM
 		private K fromKey, toKey;
 
 		private Object readResolve() {
-			// TODO
-			return null;
-			// return new AscendingSubMap<>(MyTreeMap.this, fromStart, fromKey,
-			// true, toEnd, toKey, false);
+			return new AscendingSubMap<>(MyTreeMap.this, fromStart, fromKey, true, toEnd, toKey, false);
 		}
 
 		public Set<MyMap.Entry<K, V>> entrySet() {
