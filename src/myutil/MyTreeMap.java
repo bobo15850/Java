@@ -10,6 +10,7 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.ConcurrentModificationException;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.NavigableSet;
 import java.util.NoSuchElementException;
 import java.util.Objects;
@@ -1062,7 +1063,139 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements MyNavigableM
 		 * 下面是一系列的navigableMap的API方法，通过调用内部的方法实现
 		 */
 
-		// TODO
+		public boolean isEmpty() {
+			// entrySet方法由NavigableSubMap的子类实现
+			return (fromStart && toEnd) ? m.isEmpty() : entrySet().isEmpty();
+		}
+
+		public int size() {
+			return (fromStart && toEnd) ? m.size : entrySet().size();
+		}
+
+		// 首先判断是否在范围内，然后再看m中是否能找到
+		public final boolean containsKey(Object key) {
+			return inRange(key) && m.containsKey(key);
+		}
+
+		// 添加元素，会影响到外部类的存储结构
+		public final V put(K key, V value) {
+			if (!inRange(key)) {
+				throw new IllegalArgumentException();
+			}
+			return m.put(key, value);
+		}
+
+		public final V get(Object key) {
+			return (!inRange(key)) ? null : m.get(key);
+		}
+
+		public final V remove(Object key) {
+			return !inRange(key) ? null : m.remove(key);
+		}
+
+		/*
+		 * 一系列的代理方法实现navigableMap的API
+		 */
+		public MyMap.Entry<K, V> ceilingEntry(K key) {
+			return exportEntry(subCeiling(key));
+		}
+
+		public K ceilingKey(K key) {
+			return keyOrNull(subCeiling(key));
+		}
+
+		public MyMap.Entry<K, V> higherEntry(K key) {
+			return exportEntry(subHigher(key));
+		}
+
+		public K higherKey(K key) {
+			return keyOrNull(subHigher(key));
+		}
+
+		public Entry<K, V> lowerEntry(K key) {
+			return exportEntry(subLower(key));
+		}
+
+		public K lowerKey(K key) {
+			return keyOrNull(subLower(key));
+		}
+
+		public MyMap.Entry<K, V> floorEntry(K key) {
+			return exportEntry(subFloor(key));
+		}
+
+		public K floorKey(K key) {
+			return keyOrNull(subFloor(key));
+		}
+
+		public final K firstKey() {
+			return key(subLowest());
+		}
+
+		public final K lastKey() {
+			return key(subHighest());
+		}
+
+		public MyMap.Entry<K, V> firstEntry() {
+			return exportEntry(subLowest());
+		}
+
+		public MyMap.Entry<K, V> lastEntry() {
+			return exportEntry(subHighest());
+		}
+
+		public MyMap.Entry<K, V> pollFirstEntry() {
+			MyTreeMap.Entry<K, V> e = subLowest();
+			MyMap.Entry<K, V> result = exportEntry(e);
+			if (result != null) {
+				m.deleteEntry(e);
+			}
+			return result;
+		}
+
+		public MyMap.Entry<K, V> pollLastEntry() {
+			MyTreeMap.Entry<K, V> e = subHighest();
+			MyMap.Entry<K, V> result = exportEntry(e);
+			if (result != null) {
+				m.deleteEntry(e);
+			}
+			return result;
+		}
+
+		// Views
+		transient MyNavigableMap<K, V> descendingMapView;
+		// transient EntrySetView entrySetView;
+		transient KeySet<K> navigableKeySetView;
+
+		public NavigableSet<K> navigableKeySet() {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		public final Set<K> keySet() {
+			return navigableKeySet();
+		}
+
+		public NavigableSet<K> descendingKeySet() {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		public MySortedMap<K, V> subMap(K fromKey, K toKey) {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		public MySortedMap<K, V> headMap(K toKey) {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		public MySortedMap<K, V> tailMap(K fromKey) {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
 	}
 
 	static final class AscendingSubMap<K, V> {
