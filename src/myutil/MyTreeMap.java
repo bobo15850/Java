@@ -10,7 +10,6 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.ConcurrentModificationException;
 import java.util.Iterator;
-import java.util.Map;
 import java.util.NavigableSet;
 import java.util.NoSuchElementException;
 import java.util.Objects;
@@ -722,15 +721,132 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements MyNavigableM
 		return new DescendingKeyIterator(getLastEntry());
 	}
 
-	static final class KeySet<E> {
+	static final class KeySet<E> extends AbstractSet<E> implements NavigableSet<E> {
 
 		private final MyNavigableMap<E, ?> m;
 
 		KeySet(MyNavigableMap<E, ?> map) {
 			m = map;
 		}
-		// TODO 这个方法需要用到一系列的子map，稍后再写
 
+		// 返回迭代器，只有本类和navigableSubMap抽象类可能
+		public Iterator<E> iterator() {
+			if (m instanceof MyTreeMap) {
+				return ((MyTreeMap<E, ?>) m).keyIterator();
+			}
+			else {
+				return ((MyTreeMap.NavigableSubMap<E, ?>) m).keyIterator();
+			}
+		}
+
+		public Iterator<E> descendingIterator() {
+			if (m instanceof MyTreeMap) {
+				return ((MyTreeMap<E, ?>) m).descendingKeyIterator();
+			}
+			else {
+				return ((MyTreeMap.NavigableSubMap<E, ?>) m).descendingKeyIterator();
+			}
+		}
+
+		/*
+		 * 一系列的代理方法，调用map总的方式实现navigableSet的API
+		 */
+		public int size() {
+			return m.size();
+		}
+
+		public boolean isEmpty() {
+			return m.isEmpty();
+		}
+
+		public boolean contains(Object o) {
+			return m.containsKey(o);
+		}
+
+		public void clear() {
+			m.clear();
+		}
+
+		public E lower(E e) {
+			return m.lowerKey(e);
+		}
+
+		public E floor(E e) {
+			return m.floorKey(e);
+		}
+
+		public E ceiling(E e) {
+			return m.ceilingKey(e);
+		}
+
+		public E higher(E e) {
+			return m.higherKey(e);
+		}
+
+		public E first() {
+			return m.firstKey();
+		}
+
+		public E last() {
+			return m.lastKey();
+		}
+
+		public Comparator<? super E> comparator() {
+			return m.comparator();
+		}
+
+		public E pollFirst() {
+			MyMap.Entry<E, ?> e = m.pollFirstEntry();
+			return e == null ? null : e.getKey();
+		}
+
+		public E pollLast() {
+			MyMap.Entry<E, ?> e = m.pollLastEntry();
+			return e == null ? null : e.getKey();
+		}
+
+		// 利用元素个数来判断是否删除成功
+		public boolean remove(Object o) {
+			int oldSize = size();
+			m.remove(o);
+			return size() != oldSize;
+		}
+
+		/*
+		 * 由于navigableSet的底层使用navigableMap实现的所以直接传一个map参数
+		 */
+		public NavigableSet<E> subSet(E fromElement, boolean fromInclusive, E toElement, boolean toInclusive) {
+			return new KeySet<>(m.subMap(fromElement, fromInclusive, toElement, toInclusive));
+		}
+
+		public NavigableSet<E> headSet(E toElement, boolean inclusive) {
+			return new KeySet<>(m.headMap(toElement, inclusive));
+		}
+
+		public NavigableSet<E> tailSet(E fromElement, boolean inclusive) {
+			return new KeySet<>(m.tailMap(fromElement, inclusive));
+		}
+
+		public SortedSet<E> subSet(E fromElement, E toElement) {
+			return subSet(fromElement, true, toElement, false);
+		}
+
+		public SortedSet<E> headSet(E toElement) {
+			return headSet(toElement, false);
+		}
+
+		public SortedSet<E> tailSet(E fromElement) {
+			return tailSet(fromElement, true);
+		}
+
+		public NavigableSet<E> descendingSet() {
+			return new KeySet<>(m.descendingMap());
+		}
+
+		public Spliterator<E> spliterator() {
+			// TODO这里涉及到分割迭代器
+			return null;
+		}
 	}
 
 	/*
@@ -1164,12 +1280,12 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements MyNavigableM
 
 		// Views
 		transient MyNavigableMap<K, V> descendingMapView;
-		// transient EntrySetView entrySetView;
+		transient EntrySetView entrySetView;
 		transient KeySet<K> navigableKeySetView;
 
-		public NavigableSet<K> navigableKeySet() {
-			// TODO Auto-generated method stub
-			return null;
+		public final NavigableSet<K> navigableKeySet() {
+			KeySet<K> nksv = navigableKeySetView;
+			return nksv != null ? nksv : (navigableKeySetView = new MyTreeMap.KeySet<>(this));
 		}
 
 		public final Set<K> keySet() {
@@ -1177,23 +1293,153 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements MyNavigableM
 		}
 
 		public NavigableSet<K> descendingKeySet() {
-			// TODO Auto-generated method stub
-			return null;
+			return descendingMap().navigableKeySet();
 		}
 
-		public MySortedMap<K, V> subMap(K fromKey, K toKey) {
-			// TODO Auto-generated method stub
-			return null;
+		// 默认是前闭后开
+		public final MySortedMap<K, V> subMap(K fromKey, K toKey) {
+			return subMap(fromKey, true, toKey, false);
 		}
 
-		public MySortedMap<K, V> headMap(K toKey) {
-			// TODO Auto-generated method stub
-			return null;
+		public final MySortedMap<K, V> headMap(K toKey) {
+			return headMap(toKey, false);
 		}
 
-		public MySortedMap<K, V> tailMap(K fromKey) {
-			// TODO Auto-generated method stub
-			return null;
+		public final MySortedMap<K, V> tailMap(K fromKey) {
+			return tailMap(fromKey, true);
+		}
+
+		// navigableSubMap的entry视图
+		abstract class EntrySetView extends AbstractSet<MyMap.Entry<K, V>> {
+			private transient int size = -1, sizeModCount;
+
+			public int size() {
+				if (fromStart && toEnd) {
+					return m.size;
+				}
+				// 没有初始化，或者外部的map发生了修改，size利用缓存机制
+				if (size == -1 || sizeModCount != m.modCount) {
+					sizeModCount = m.modCount;
+					size = 0;
+					Iterator<?> i = iterator();
+					while (i.hasNext()) {
+						size++;
+						i.next();
+					}
+				}
+				return size;
+			}
+
+			// 有各种方式判断
+			public boolean isEmpty() {
+				MyTreeMap.Entry<K, V> n = absLowest();
+				return n == null || tooHigh(n);
+			}
+
+			// 需要进行类型检查，判断key的范围，判断value是否相等,然后调用treeMap类的方法，涉及多个判断过程的时候使用短路算法
+			public boolean contains(Object o) {
+				if (!(o instanceof MyTreeMap.Entry)) {
+					return false;
+				}
+				MyMap.Entry<?, ?> e = (MyMap.Entry<?, ?>) o;
+				Object key = e.getKey();
+				if (!inRange(key)) {
+					return false;
+				}
+				MyTreeMap.Entry<?, ?> node = m.getEntry(key);
+				return node != null && valEquals(node.getValue(), e.getValue());
+			}
+
+			// 思路类似于contains
+			public boolean remove(Object o) {
+				if (!(o instanceof MyTreeMap.Entry)) {
+					return false;
+				}
+				MyMap.Entry<?, ?> e = (MyMap.Entry<?, ?>) o;
+				Object key = e.getKey();
+				if (!inRange(key)) {
+					return false;
+				}
+				MyTreeMap.Entry<K, V> node = m.getEntry(key);
+				if (node != null && valEquals(node.getValue(), e.getValue())) {
+					m.deleteEntry(node);
+					return true;
+				}
+				return false;
+			}
+		}
+
+		/*
+		 * subMap的迭代器
+		 */
+
+		abstract class SubMapIterator<T> implements Iterator<T> {
+			MyTreeMap.Entry<K, V> lastReturned;
+			MyTreeMap.Entry<K, V> next;
+			final Object fenceKey;
+			int expectedModCount;
+
+			SubMapIterator(MyTreeMap.Entry<K, V> first, MyTreeMap.Entry<K, V> fence) {
+				expectedModCount = m.modCount;
+				lastReturned = null;
+				next = first;
+				fenceKey = (fence == null ? UNBOUNDED : fence.key);
+			}
+
+			// 必须有下一个，而且下一个不能是设置的越界
+			public final boolean hasNext() {
+				return next != null && next.key != UNBOUNDED;
+			}
+
+			// 返回下一个，lastReturned才是现在所处的位置
+			final MyTreeMap.Entry<K, V> nextEntry() {
+				MyTreeMap.Entry<K, V> e = next;
+				if (e == null || e.key == fenceKey) {
+					throw new NoSuchElementException();
+				}
+				if (m.modCount != expectedModCount) {
+					throw new ConcurrentModificationException();
+				}
+				next = successor(e);
+				lastReturned = e;
+				return e;
+			}
+
+			final MyTreeMap.Entry<K, V> prevEntry() {
+				MyTreeMap.Entry<K, V> e = next;
+				if (e == null || e.key == fenceKey) {
+					throw new NoSuchElementException();
+				}
+				if (m.modCount != expectedModCount) {
+					throw new ConcurrentModificationException();
+				}
+				next = predecessor(e);
+				lastReturned = e;
+				return e;
+			}
+
+			final void removeAscending() {
+				if (lastReturned == null)
+					throw new IllegalStateException();
+				if (m.modCount != expectedModCount)
+					throw new ConcurrentModificationException();
+				// 这里是因为删除的时候用后继的内容直接代替这个，然后删除后继
+				if (lastReturned.left != null && lastReturned.right != null)
+					next = lastReturned;
+				m.deleteEntry(lastReturned);
+				lastReturned = null;
+				expectedModCount = m.modCount;
+			}
+
+			final void removeDescending() {
+				if (lastReturned == null)
+					throw new IllegalStateException();
+				if (m.modCount != expectedModCount)
+					throw new ConcurrentModificationException();
+				m.deleteEntry(lastReturned);
+				lastReturned = null;
+				expectedModCount = m.modCount;
+			}
 		}
 
 	}
@@ -1392,7 +1638,8 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements MyNavigableM
 	}// 返回节点的父节点
 
 	private static <K, V> void setColor(Entry<K, V> e, boolean c) {
-		if (e != null) e.color = c;
+		if (e != null)
+			e.color = c;
 	}// 设置节点颜色
 
 	private static <K, V> Entry<K, V> leftOf(Entry<K, V> e) {
@@ -1452,8 +1699,7 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements MyNavigableM
 	}// 将该节点为根的子树右旋
 
 	/*
-	 * 主要思路：
-	 * 1.首先判断新节点是加在左节点还是右节点上，以下以左节点为例
+	 * 主要思路： 1.首先判断新节点是加在左节点还是右节点上，以下以左节点为例
 	 * 2.然后判断新节点的叔叔节点的颜色，如果是红色则说明爷爷节点是黑色，就要颠倒爷父叔之后递归调用爷
 	 * 3.如果是黑色或者没有则要判断新加的节点是左节点还是右节点，如果是右节点则要进行左旋新节点的父节点
 	 * 4.最后右旋爷爷节点，调整父节点和爷爷节点的颜色
@@ -1515,8 +1761,7 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements MyNavigableM
 
 	// 刪除元素，一定存在的节点
 	/*
-	 * 二叉搜索樹刪除节点（该节点做右子树都有）的处理方法：
-	 * 1.用该节点的左子树或者右子树结点代替被删除的节点，然后将剩下的子树连接在最左或者最右
+	 * 二叉搜索樹刪除节点（该节点做右子树都有）的处理方法： 1.用该节点的左子树或者右子树结点代替被删除的节点，然后将剩下的子树连接在最左或者最右
 	 * 2.用该节点的前驱结点或者后继结点代替被删除的节点，在递归的删除前驱或者后继结点
 	 * 
 	 * treemap中采用的是：被删除节点的右子树中最小节点与被删节点交换的方式进行维护（用后继结点代替该节点，然后递归的删除）
@@ -1685,10 +1930,7 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements MyNavigableM
 
 	// 该方法通过递归的方式将部分的元素添加到map中去
 	/*
-	 * level:表示树现在构造到的深度
-	 * lo:表示需要添加的元素的起始位置
-	 * li:表示需要添加的元素的末尾位置
-	 * redLevel:
+	 * level:表示树现在构造到的深度 lo:表示需要添加的元素的起始位置 li:表示需要添加的元素的末尾位置 redLevel:
 	 * 需要变成红色的深度（所有的满二叉树层都可以直接用黑色，只有最后一层不满的需要使用红色这样才能保证所有路径上黑色的数目相等）
 	 * it和str:这两者只需要使用其中一个就可以了，优先使用it如果it为空就使用str,str主要是给反序列化准备的，其他的使用情况比较少
 	 * defaultVal:
@@ -1697,7 +1939,8 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements MyNavigableM
 	@SuppressWarnings("unchecked")
 	private final Entry<K, V> buildFromSorted(int level, int lo, int hi, int redLevel, Iterator<?> it,
 			java.io.ObjectInputStream str, V defaultVal) throws java.io.IOException, ClassNotFoundException {
-		if (hi < lo) return null;
+		if (hi < lo)
+			return null;
 		int mid = (hi + lo) >>> 1;
 		Entry<K, V> left = null;
 		if (lo < mid) {
@@ -1884,9 +2127,7 @@ public class MyTreeMap<K, V> extends MyAbstractMap<K, V> implements MyNavigableM
 	}
 }
 /*
- * 参考资料：
- * 1.https://www.ibm.com/developerworks/cn/java/j-lo-tree/
- * 2.http://blog.csdn.net/v_july_v/article/details/6105630
- * 视频资料：
+ * 参考资料： 1.https://www.ibm.com/developerworks/cn/java/j-lo-tree/
+ * 2.http://blog.csdn.net/v_july_v/article/details/6105630 视频资料：
  * 1.http://v.youku.com/v_show/id_XMjE4MjQwMTQ4.html
  */
