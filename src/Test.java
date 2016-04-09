@@ -67,12 +67,12 @@ public class Test {
 		// m.putAll(map);
 		// System.out.println(m.toString());
 
-		TreeMap<String, String> map = new TreeMap<String, String>();
-		map.put("11", "aa");
-		map.put("2", "b");
-		@SuppressWarnings("unchecked")
-		Map<String, String> copy = (Map<String, String>) map.clone();
-		System.out.println(copy);
+		// TreeMap<String, String> map = new TreeMap<String, String>();
+		// map.put("11", "aa");
+		// map.put("2", "b");
+		// @SuppressWarnings("unchecked")
+		// Map<String, String> copy = (Map<String, String>) map.clone();
+		// System.out.println(copy);
 
 		// map.forEach((a, b) -> System.out.println(a + b));
 		// Collection<String> values = map.values();
@@ -102,5 +102,7 @@ public class Test {
 		// myMap.put("b", 2);
 		// myMap.put("y", 4);
 		// System.out.println(myMap.toString());
+		
+		
 	}
 }
