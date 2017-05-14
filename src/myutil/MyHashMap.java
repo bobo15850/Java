@@ -1,9 +1,9 @@
 package myutil;
 
 import java.io.Serializable;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-
 
 public class MyHashMap<K, V> extends MyAbstractMap<K, V> implements MyMap<K, V>, Cloneable, Serializable {
 	/*
@@ -147,7 +147,40 @@ public class MyHashMap<K, V> extends MyAbstractMap<K, V> implements MyMap<K, V>,
 
 	public MyHashMap(MyMap<? extends K, ? extends V> m) {
 		this.loadFactor = DEFAULT_LOAD_FACTOR;
-		// TODO 这里需要将传进来的map来初始化本实例的map
+		putMapEntries(m, false);
+	}
+
+	/**
+	 * 将参数中map的所有键值放入本实例的map中
+	 * 
+	 * @param m
+	 * @param evict
+	 *            该参数是在putVal方法中使用，提供扩展点
+	 */
+	final void putMapEntries(MyMap<? extends K, ? extends V> m, boolean evict) {
+		int s = m.size();
+		if (s > 0) {
+			// 初始化，直接分配阈值等参数
+			if (table == null) {
+				// 反向根据阈值和加载因子求容量
+				float ft = ((float) s / loadFactor) + 1.0F;
+				int t = (ft < (float) MAXIMUM_CAPACITY) ? (int) ft : MAXIMUM_CAPACITY;
+				if (t > threshold) {
+					threshold = tableSizeFor(t);
+				}
+			}
+			// 添加元素,待添加的元素已经大于阈值，直接先进行扩容操作
+			else if (s > threshold) {
+				resize();
+			}
+			// 通过循环添加元素
+			for (MyMap.Entry<? extends K, ? extends V> e : m.entrySet()) {
+				K key = e.getKey();
+				V value = e.getValue();
+				putVal(hash(key), key, value, false, evict);
+			}
+
+		}
 	}
 
 	public int size() {
@@ -233,7 +266,9 @@ public class MyHashMap<K, V> extends MyAbstractMap<K, V> implements MyMap<K, V>,
 	}
 
 	/**
-	 * 如果table为空就用initialCapacity创建table，否则就将table的length变成两倍，然后进行数据迁移，迁移的过程中可能会有红黑树、链表的拆分，红黑树的退化为链表等操作
+	 * 如果table为空就用initialCapacity创建table，否则就将table的length变成两倍，然后进行数据迁移，
+	 * 迁移的过程中可能会有红黑树、链表的拆分，红黑树的退化为链表等操作
+	 * 
 	 * @return
 	 */
 	final Node<K, V>[] resize() {
@@ -241,55 +276,57 @@ public class MyHashMap<K, V> extends MyAbstractMap<K, V> implements MyMap<K, V>,
 		int oldCap = (oldTab == null) ? 0 : oldTab.length;
 		int oldThr = threshold;
 		int newCap, newThr = 0;
-		if(oldCap > 0){ // 已经初始化过了，进行扩容
-			 // 此处有可能oldCap本身为1<<30,再进行移位就变成负数了
-			if(oldCap >= MAXIMUM_CAPACITY){ // 已经达到最大容量 
+		if (oldCap > 0) { // 已经初始化过了，进行扩容
+			// 此处有可能oldCap本身为1<<30,再进行移位就变成负数了
+			if (oldCap >= MAXIMUM_CAPACITY) { // 已经达到最大容量
 				threshold = Integer.MAX_VALUE;
 				return oldTab;
 			}
-			else if((newCap = oldCap << 1) < MAXIMUM_CAPACITY &&
-					oldCap >= DEFAULT_INITIAL_CAPACITY) {
+			else if ((newCap = oldCap << 1) < MAXIMUM_CAPACITY && oldCap >= DEFAULT_INITIAL_CAPACITY) {
 				threshold = oldThr << 1; // 扩容两倍同样阈值也扩大两倍
 			}
 		}
-		else if (oldThr > 0) { // table未初始化，仅仅初始化了threshold，通过new HashMap(int)或者new HashMap(int,float)进行创建
+		else if (oldThr > 0) { // table未初始化，仅仅初始化了threshold，通过new
+								// HashMap(int)或者new HashMap(int,float)进行创建
 			newCap = oldThr;// 第一次分配table的大小通过HashMap(int,float)中的threshold进行了保存
 		}
 		else { // 执行至此说明HashMap是通过new HashMap()直接创建，没有指定初始化参数
 			newCap = DEFAULT_INITIAL_CAPACITY;
 			newThr = (int) (DEFAULT_INITIAL_CAPACITY * DEFAULT_LOAD_FACTOR);
 		}
-		if (newThr == 0) {//对应于上面的第二个else if，说明是第一次创建，且在初始化hashMap的时候指定了capacity，此时的threshold是根据构造函数计算出来的tableSize，这里需要重新计算newThr
+		if (newThr == 0) {// 对应于上面的第二个else
+							// if，说明是第一次创建，且在初始化hashMap的时候指定了capacity，此时的threshold是根据构造函数计算出来的tableSize，这里需要重新计算newThr
 			float ft = newCap * loadFactor;
-			newThr = (newCap < MAXIMUM_CAPACITY && ft < (float)MAXIMUM_CAPACITY) ? (int) ft : Integer.MAX_VALUE;
+			newThr = (newCap < MAXIMUM_CAPACITY && ft < (float) MAXIMUM_CAPACITY) ? (int) ft : Integer.MAX_VALUE;
 		}
 		threshold = newThr;
-		
+
 		// 分成两部分：上半部分是计算新的capacity以及新的threshold，下半部分进行数据迁移
-		
+
 		@SuppressWarnings("unchecked")
 		Node<K, V>[] newTab = new Node[newCap];
 		table = newTab;
-		if(oldTab != null){
-			for(int j = 0; j < newCap; ++j){
+		if (oldTab != null) {
+			for (int j = 0; j < newCap; ++j) {
 				Node<K, V> e;
-				if((e = oldTab[j]) != null){
-					oldTab[j] = null;//将原来的table上的一个节点上的内容缓存到e上，使得oldTable能够被GC回收
-					if(e.next == null){// 只有一个元素，只需要将该元素本身迁移
-						newTab[e.hash & (newCap - 1)] = e;// newCap是2的k次幂，求模相当于取其最后的k位  ！！！
+				if ((e = oldTab[j]) != null) {
+					oldTab[j] = null;// 将原来的table上的一个节点上的内容缓存到e上，使得oldTable能够被GC回收
+					if (e.next == null) {// 只有一个元素，只需要将该元素本身迁移
+						newTab[e.hash & (newCap - 1)] = e;// newCap是2的k次幂，求模相当于取其最后的k位
+															// ！！！
 					}
 					else if (e instanceof TreeNode) {// 已经是一棵红黑树，需要把该红黑树分裂开来，一半放在高位，一半放在低位，具体处理在split方法中
-						((TreeNode<K, V>)e).split(this, newTab, j, newCap);
+						((TreeNode<K, V>) e).split(this, newTab, j, newCap);
 					}
 					else {
 						// 原本是一个链表，将其分裂成两个链表，分别放在高低位
 						Node<K, V> loHead = null, loTail = null;
 						Node<K, V> hiHead = null, hiTail = null;
 						Node<K, V> next;
-						do{
+						do {
 							next = e.next;
-							if ((e.hash & oldCap) ==0) {	// 说明是模newCap的值小于oldCap，应该放在低位
-								if(loTail == null){
+							if ((e.hash & oldCap) == 0) { // 说明是模newCap的值小于oldCap，应该放在低位
+								if (loTail == null) {
 									loHead = e;// head保存第一个指针
 								}
 								else {
@@ -298,7 +335,7 @@ public class MyHashMap<K, V> extends MyAbstractMap<K, V> implements MyMap<K, V>,
 								loTail = e;
 							}
 							else { // 高位
-								if(hiTail == null){
+								if (hiTail == null) {
 									hiHead = e;
 								}
 								else {
@@ -306,12 +343,12 @@ public class MyHashMap<K, V> extends MyAbstractMap<K, V> implements MyMap<K, V>,
 								}
 								hiTail = e;
 							}
-						}while((e = next) != null);
-						if(loTail != null){//低位有元素
+						} while ((e = next) != null);
+						if (loTail != null) {// 低位有元素
 							loTail.next = null;
 							newTab[j] = loHead;
 						}
-						if(hiTail != null){//高位有元素
+						if (hiTail != null) {// 高位有元素
 							hiTail.next = null;
 							newTab[j + oldCap] = hiHead;
 						}
@@ -322,8 +359,46 @@ public class MyHashMap<K, V> extends MyAbstractMap<K, V> implements MyMap<K, V>,
 		return newTab;
 	}
 
+	/**
+	 * 冲突链表长度达到转化阈值判断是进行扩容还是将链表转化为红黑树
+	 * 
+	 * @param tab
+	 *            整个map的链表
+	 * @param hash
+	 *            为了定位到具体的链达到阈值的链
+	 */
 	final void treeifyBin(Node<K, V>[] tab, int hash) {
-		// TODO 该方法需要重点实现，将某个链表改成红黑树
+		int n, index;
+		Node<K, V> e;
+		// 如果map为空为初始化或者tab的长度小于最小转化为红黑树的的tab长度，则进行resize
+		if (tab == null || (n = tab.length) < MIN_TREEIFY_CAPACITY) {
+			resize();
+		}
+		// 找到对应的位置的开头不为空则进行红黑树的转化，对2^n取模相当于对2^n - 1做&运算
+		else if ((e = tab[index = (n - 1) & hash]) != null) {
+			TreeNode<K, V> hd = null, tl = null;
+			// 该循环中只有tl是循环量，p是每次循环创建的
+			// tl表示当前正在处理的节点的前一个节点，hd表示该链表的头结点，红黑树的根节点
+			do {
+				TreeNode<K, V> p = replacementTreeNode(e, null);
+				if (tl == null) {
+					hd = p;
+				}
+				else {
+					p.prev = tl;
+					tl.next = p;
+				}
+				tl = p;
+			} while ((e = e.next) != null);
+			// 现将普通node链表转化为红黑树TreeNode链表，再进行红黑树转化
+			if ((tab[index] = hd) != null) {
+				hd.treeify(tab);
+			}
+		}
+	}
+
+	public void putAll(MyMap<? extends K, ? extends V> m) {
+		putMapEntries(m, true);// TODO 此处使用true作用？？原因？？
 	}
 
 	public Set<MyMap.Entry<K, V>> entrySet() {
@@ -333,6 +408,11 @@ public class MyHashMap<K, V> extends MyAbstractMap<K, V> implements MyMap<K, V>,
 	// 得到一个普通的节点
 	Node<K, V> newNode(int hash, K key, V value, Node<K, V> next) {
 		return new Node<K, V>(hash, key, value, next);
+	}
+
+	// 将一个hashMap的node转化为一个红黑树的Treenode，在将链表转化为红黑树时使用
+	TreeNode<K, V> replacementTreeNode(Node<K, V> p, Node<K, V> next) {
+		return new TreeNode<K, V>(p.hash, p.key, p.value, next);
 	}
 
 	// 回调函数，给LinkedHashMap来使用
@@ -345,13 +425,26 @@ public class MyHashMap<K, V> extends MyAbstractMap<K, V> implements MyMap<K, V>,
 	void afterNodeRemoval(Node<K, V> p) {
 	}
 
-	// TODO这个类需要重点来完善
+	// TODO这个类需要重点来完善,通过红黑树节点来存储过长的链表
 	static final class TreeNode<K, V> extends MyLinkedHashMap.Entry<K, V> {
+		TreeNode<K, V> parent;
+		TreeNode<K, V> left;
+		TreeNode<K, V> right;
+		TreeNode<K, V> prev;
 
 		TreeNode(int hash, K key, V value, Node<K, V> next) {
 			super(hash, key, value, next);
 		}
-		
+
+		/**
+		 * 将链表转化为红黑树
+		 * 
+		 * @param tab
+		 */
+		final void treeify(Node<K, V>[] tab) {
+
+		}
+
 		/**
 		 * 该方法实现了向红黑树中添加元素
 		 * 
@@ -362,22 +455,25 @@ public class MyHashMap<K, V> extends MyAbstractMap<K, V> implements MyMap<K, V>,
 		 * @param value
 		 * @return
 		 */
-		final Node<K, V> putTreeVal(MyHashMap<K, V> map, Node<K, V>[] tab, int hash, K key, V value){
+		final Node<K, V> putTreeVal(MyHashMap<K, V> map, Node<K, V>[] tab, int hash, K key, V value) {
 			// TODO
 			return null;
 		}
-		
-		
+
 		/**
 		 * 该方法实现了扩容时将原来是红黑树的节点进行分裂，分成低位和高位两部分
 		 * 两部分根据是否小于{@link MyHashMap#UNTREEIFY_THRESHOLD}来决定是否退化为链表
 		 * 
-		 * @param map 所属的hashMap
-		 * @param tab 扩容后的table
-		 * @param index 扩容前的位置
-		 * @param bit 扩容前的capacity
+		 * @param map
+		 *            所属的hashMap
+		 * @param tab
+		 *            扩容后的table
+		 * @param index
+		 *            扩容前的位置
+		 * @param bit
+		 *            扩容前的capacity
 		 */
-		final void split(MyHashMap<K, V> map, Node<K, V>[] tab, int index, int bit){
+		final void split(MyHashMap<K, V> map, Node<K, V>[] tab, int index, int bit) {
 			// TODO
 		}
 
