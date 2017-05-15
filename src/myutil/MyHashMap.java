@@ -401,6 +401,87 @@ public class MyHashMap<K, V> extends MyAbstractMap<K, V> implements MyMap<K, V>,
 		putMapEntries(m, true);// TODO 此处使用true作用？？原因？？
 	}
 
+	/**
+	 * 删除map中的键值
+	 * 
+	 * @param key
+	 *            键
+	 * @return 如果不存在key的键返回null，但是返回null也可能是key键的值本来就是null
+	 */
+	public V remove(Object key) {
+		return null;
+	}
+
+	/**
+	 * 删除操作的具体实现方法
+	 * 
+	 * @param hash
+	 *            键的哈希值
+	 * @param key
+	 * @param value
+	 *            期望的值，只有在matchValue被设置为true的时候才会检查是否匹配
+	 * @param matchValue
+	 *            设置之后，只有当value和通过key取到的值匹配才进行删除
+	 * @param movable
+	 *            TODO 作用暂且不明
+	 * 
+	 * @return
+	 */
+	final Node<K, V> removeNode(int hash, Object key, Object value, boolean matchValue, boolean movable) {
+		Node<K, V>[] tab;
+		Node<K, V> p;// 通过hash定位到当前的budget的第一个元素
+		int n, index;
+		// map已经初始化，且不为空，且待处理的位置上有元素，此种编码方式将赋值操作和判断操作同时进行了
+		if ((tab = table) != null && (n = tab.length) > 0 && (p = tab[index = (n - 1) & hash]) != null) {
+			Node<K, V> node = null, e;// node用以保存目标节点，e作为循环变量
+			K k;
+			V v;
+			// budget的第一个元素就是需要找的key
+			if (p.hash == hash && ((k = p.key) == key || (key != null && key.equals(k)))) {
+				node = p;
+			}
+			// 查找该budget剩下的元素
+			else if ((e = p.next) != null) {
+				// 该budget下是红黑树,直接调用内部TreeNode的查找方法
+				if (p instanceof TreeNode) {
+					node = ((TreeNode<K, V>) p).getTreeNode(hash, key);
+				}
+				// 该budget下是链表,通过遍历查找对应的节点
+				else {
+					do {
+						if (e.hash == hash && (((k = e.key) == key) || (key != null && key.equals(k)))) {
+							node = e;
+							break;
+						}
+						p = e;// p保存当前循环节点的前一个节点
+					} while ((e = e.next) != null);
+				}
+			}
+			// 处理matchValue参数，并选择删除方式进行处理
+			// 处理方式同时兼顾了==判断和equal判断
+			if (node != null && (!matchValue || (v = node.value) == value || value != null && value.equals(v))) {
+				// 红黑树的删除直接调用TreeNode方法实现
+				if (node instanceof TreeNode) {
+					((TreeNode<K, V>) node).removeTreeNode(this, tab, movable);
+				}
+				// 目标节点是该budget下的第一个节点
+				else if (node == p) {
+					tab[index] = node.next;
+				}
+				// 目标节点在链表中部
+				else {
+					p.next = node.next;
+				}
+
+				++modCount;
+				--size;
+				afterNodeRemoval(node);// 钩子函数，可扩展删除元素之后的行为
+				return node;
+			}
+		}
+		return null;
+	}
+
 	public Set<MyMap.Entry<K, V>> entrySet() {
 		return null;
 	}
@@ -437,12 +518,36 @@ public class MyHashMap<K, V> extends MyAbstractMap<K, V> implements MyMap<K, V>,
 		}
 
 		/**
+		 * 查找红黑树中对应的节点
+		 * 
+		 * @param hash
+		 * @param key
+		 * @param keyClass
+		 * @return
+		 */
+		final TreeNode<K, V> find(int hash, Object key, Class<?> keyClass) {
+			// TODO
+			return null;
+		}
+
+		/**
+		 * 
+		 * @param hash
+		 * @param key
+		 * @return
+		 */
+		final TreeNode<K, V> getTreeNode(int hash, Object key) {
+			// TODO
+			return null;
+		}
+
+		/**
 		 * 将链表转化为红黑树
 		 * 
 		 * @param tab
 		 */
 		final void treeify(Node<K, V>[] tab) {
-
+			// TODO
 		}
 
 		/**
@@ -458,6 +563,17 @@ public class MyHashMap<K, V> extends MyAbstractMap<K, V> implements MyMap<K, V>,
 		final Node<K, V> putTreeVal(MyHashMap<K, V> map, Node<K, V>[] tab, int hash, K key, V value) {
 			// TODO
 			return null;
+		}
+
+		/**
+		 * 失信从红黑树中删除一个元素
+		 * 
+		 * @param map
+		 * @param tab
+		 * @param movable
+		 */
+		final void removeTreeNode(MyHashMap<K, V> map, Node<K, V>[] tab, boolean movable) {
+			// TODO 从红黑树中删除一个元素
 		}
 
 		/**
